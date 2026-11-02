@@ -40,7 +40,7 @@ idempotent; running it again only refreshes the "updated" timestamp.
 | `public/tomorrow.json`, `today.json` | same JSON as the archive files; `tomorrow.json` carries `available: false` when not published. |
 | `public/feed.xml`, `sitemap.xml`, `llms.txt`, `robots.txt`, `404.html`, `build.json` | feeds and metadata. |
 | `public/legal/` | responsible person, source, "not advice", CC BY 4.0, link to https://formachines.ai/legal/. |
-| `public/go/telegram/` | meta-refresh redirect to the Telegram channel (URL = `TELEGRAM_URL` in `build.py`, placeholder until the owner creates the channel). Hits on `/go/telegram/` are the click counter; `robots.txt` disallows `/go/`. |
+| `public/go/telegram/` | meta-refresh redirect to the Telegram channel (URL = `TELEGRAM_URL` in `build.py`). Hits on `/go/telegram/` are the click counter; `robots.txt` disallows `/go/`. |
 
 ## Data source — verified 2026-11-02 16:51 UTC from this Mac
 
