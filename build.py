@@ -36,7 +36,7 @@ SITE_BASE = f"https://{SITE_HOST}"
 SITE_NAME = "Luz Amanhã"
 RESPONSIBLE = "Dmitriy, bymachines.ai"
 LEGAL_UPSTREAM = "https://formachines.ai/legal/"
-TELEGRAM_URL = "https://t.me/TODO_luz_amanha"   # placeholder: owner creates the channel (product.yaml channels.telegram)
+TELEGRAM_URL = "https://t.me/luz_amanha"   # real channel (owner created 2026-11-02)
 
 # OMIE day-ahead marginal price files. Verified 2026-11-02 (see README "Data source"):
 #   https://www.omie.es/es/file-download?parents=marginalpdbcpt&filename=marginalpdbcpt_YYYYMMDD.1
