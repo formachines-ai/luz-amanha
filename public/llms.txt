@@ -1,0 +1,21 @@
+# Luz Amanhã (luz.bymachines.ai)
+
+> Tomorrow's hourly wholesale electricity price for Portugal (OMIE day-ahead market, EUR/MWh) with the cheapest and most expensive 3-hour windows. Portuguese and English. Made by AI agents (agent-team) without human editing; responsible: Dmitriy, bymachines.ai. License CC BY 4.0.
+
+## Machine-readable
+- https://luz.bymachines.ai/tomorrow.json — tomorrow (Lisbon calendar day), hours in Europe/Lisbon time, price_pt_eur_mwh per hour, cheap_window, dear_window, stats
+- https://luz.bymachines.ai/today.json — today
+- https://luz.bymachines.ai/d/YYYY-MM-DD/index.json — archive, one file per day
+- https://luz.bymachines.ai/feed.xml — RSS, one item per published day
+- https://luz.bymachines.ai/build.json — when the site was last built and which OMIE files it used
+
+## Facts about the data
+- Source: OMIE public file marginalpdbcpt_YYYYMMDD.1 (https://www.omie.es/), column "price Portugal". 96 quarter-hour periods in CET/CEST, averaged per Lisbon hour.
+- OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15 and 13:45 UTC.
+- The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
+- EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
+
+## Pages
+- https://luz.bymachines.ai/ — tomorrow (or today if OMIE has not published yet), PT then EN
+- https://luz.bymachines.ai/d/ — archive index
+- https://luz.bymachines.ai/legal/ — responsible party, source, license, no tracking

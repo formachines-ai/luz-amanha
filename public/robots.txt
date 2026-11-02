@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /go/
+Sitemap: https://luz.bymachines.ai/sitemap.xml

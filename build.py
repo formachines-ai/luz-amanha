@@ -1,0 +1,684 @@
+#!/usr/bin/env python3
+"""Luz Amanhã — static site builder. Python 3.12 standard library only.
+
+    python3 build.py                 # fetch tomorrow (and the last 8 days) from OMIE, build public/
+    python3 build.py --date 2026-11-03
+    python3 build.py --offline       # no network: use data/omie/ cache only
+    python3 build.py --selftest      # parse data/fixtures/ and check invariants, no network, no output
+
+Pipeline: fetch (cache data/omie/<date>.txt) → parse (96/92/100 quarter-hours or 24/23/25 hours)
+→ aggregate to Lisbon-time hours → cheapest / most expensive windows → HTML + JSON + feed into public/.
+Everything configurable is in the CONSTANTS block below or in config/tariff.json.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import html
+import json
+import logging
+import os
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+# ----------------------------------------------------------------------------- CONSTANTS
+ROOT = Path(__file__).resolve().parent
+CONFIG_DIR = ROOT / "config"
+DATA_DIR = ROOT / "data" / "omie"
+FIXTURES_DIR = ROOT / "data" / "fixtures"
+PUBLIC_DIR = ROOT / "public"
+
+SITE_HOST = "luz.bymachines.ai"
+SITE_BASE = f"https://{SITE_HOST}"
+SITE_NAME = "Luz Amanhã"
+RESPONSIBLE = "Dmitriy, bymachines.ai"
+LEGAL_UPSTREAM = "https://formachines.ai/legal/"
+TELEGRAM_URL = "https://t.me/TODO_luz_amanha"   # placeholder: owner creates the channel (product.yaml channels.telegram)
+
+# OMIE day-ahead marginal price files. Verified 2026-11-02 (see README "Data source"):
+#   https://www.omie.es/es/file-download?parents=marginalpdbcpt&filename=marginalpdbcpt_YYYYMMDD.1
+# `marginalpdbc` (Spain folder) carries the same body with a different header line.
+OMIE_PARENT = "marginalpdbcpt"
+OMIE_URL = "https://www.omie.es/es/file-download?parents={parent}&filename={parent}_{ymd}.{version}"
+OMIE_VERSION = "1"
+OMIE_HEADER_PREFIX = "MARGINALPDBC"     # both MARGINALPDBCPT; and MARGINALPDBC;
+OMIE_COL_PT = 4                          # 0-based column index of the Portuguese price
+OMIE_COL_ES = 5
+OMIE_PERIODS_TZ = ZoneInfo("Europe/Madrid")   # MIBEL day-ahead periods are defined in CET/CEST
+DISPLAY_TZ = ZoneInfo("Europe/Lisbon")
+HTTP_TIMEOUT_S = 30
+USER_AGENT = f"luz-amanha-build/1.0 (+{SITE_BASE}; static site, 1 request per file per day)"
+PUBLISH_HINT_LOCAL = "13:00"             # OMIE listing showed 13:27–14:18 Madrid time on 23–31.10.2026
+RETRY_HINT_UTC = "13:45"
+
+WINDOW_HOURS = 3                         # consecutive cheap/expensive window length
+HISTORY_DAYS = 7                         # for the 7-day comparison
+FETCH_BACK_DAYS = HISTORY_DAYS + 1       # yesterday + 7 days before it
+FEED_ITEMS = 14
+
+LOG_FORMAT = "%(asctime)s %(levelname)s %(message)s"
+log = logging.getLogger("luz")
+
+
+# ----------------------------------------------------------------------------- FETCH
+class OmieMissing(Exception):
+    """The file for that date is not published (HTTP 404 or an HTML body instead of data)."""
+
+
+def omie_filename(day: dt.date) -> str:
+    return f"{OMIE_PARENT}_{day:%Y%m%d}.{OMIE_VERSION}"
+
+
+def cache_path(day: dt.date) -> Path:
+    return DATA_DIR / f"{day.isoformat()}.txt"
+
+
+def looks_like_omie(text: str) -> bool:
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    return len(lines) >= 3 and lines[0].startswith(OMIE_HEADER_PREFIX) and lines[-1] == "*"
+
+
+def fetch_day(day: dt.date, offline: bool = False) -> str | None:
+    """Return the raw OMIE text for `day`, from cache or network. None if not published yet."""
+    p = cache_path(day)
+    if p.exists():
+        text = p.read_text(encoding="latin-1")
+        if looks_like_omie(text):
+            log.debug("cache hit %s", p.name)
+            return text
+        log.warning("cache file %s is not a valid OMIE file, refetching", p.name)
+    if offline:
+        log.info("offline: no cache for %s", day)
+        return None
+    url = OMIE_URL.format(parent=OMIE_PARENT, ymd=f"{day:%Y%m%d}", version=OMIE_VERSION)
+    log.info("GET %s", url)
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as r:
+            body = r.read()
+            ctype = r.headers.get("Content-Type", "")
+            status = r.status
+    except urllib.error.HTTPError as e:
+        log.info("OMIE %s -> HTTP %s (not published yet or wrong name)", omie_filename(day), e.code)
+        return None
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        log.error("network error for %s: %s", day, e)
+        return None
+    text = body.decode("latin-1")
+    if status != 200 or "text/html" in ctype or not looks_like_omie(text):
+        log.info("OMIE %s -> %s %s, body is not an OMIE file (%d bytes)", omie_filename(day), status, ctype, len(body))
+        return None
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    p.write_text(text, encoding="latin-1")
+    log.info("saved %s (%d bytes, %d data rows)", p, len(body), text.count("\n") - 2)
+    return text
+
+
+# ----------------------------------------------------------------------------- PARSE
+def parse_omie(text: str) -> dict:
+    """Parse one file. Returns {'date': date, 'periods': [(period_no, pt, es), ...], 'resolution_min': 15|60}.
+
+    Rows: `YYYY;MM;DD;period;pt;es;`. 96 rows = 15-min day, 92/100 = clock-change days; 24/23/25 = hourly files
+    (format before October 2025). Any other count raises.
+    """
+    rows: list[tuple[int, float, float]] = []
+    day: dt.date | None = None
+    for ln in text.splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith(OMIE_HEADER_PREFIX) or ln == "*":
+            continue
+        parts = ln.split(";")
+        if len(parts) < 6:
+            raise ValueError(f"short row: {ln!r}")
+        y, m, d, k = (int(parts[i]) for i in range(4))
+        pt, es = float(parts[OMIE_COL_PT]), float(parts[OMIE_COL_ES])
+        row_day = dt.date(y, m, d)
+        day = day or row_day
+        if row_day != day:
+            raise ValueError(f"mixed dates in file: {day} vs {row_day}")
+        rows.append((k, pt, es))
+    if day is None:
+        raise ValueError("no data rows")
+    rows.sort()
+    n = len(rows)
+    if n in (96, 92, 100):
+        res = 15
+    elif n in (24, 23, 25):
+        res = 60
+    else:
+        raise ValueError(f"unexpected row count {n} for {day}")
+    if [k for k, _, _ in rows] != list(range(1, n + 1)):
+        raise ValueError(f"periods are not 1..{n} for {day}")
+    for _, pt, es in rows:
+        if pt != pt or es != es:  # NaN guard
+            raise ValueError("NaN price")
+    return {"date": day, "periods": rows, "resolution_min": res}
+
+
+def period_starts(parsed: dict) -> list[tuple[dt.datetime, float, float]]:
+    """Each period's start as an aware datetime in OMIE_PERIODS_TZ, walked in UTC so clock changes are exact."""
+    day = parsed["date"]
+    start = dt.datetime.combine(day, dt.time(0), tzinfo=OMIE_PERIODS_TZ).astimezone(dt.timezone.utc)
+    step = dt.timedelta(minutes=parsed["resolution_min"])
+    return [(start + step * (k - 1), pt, es) for k, pt, es in parsed["periods"]]
+
+
+# ----------------------------------------------------------------------------- HOURS (Lisbon)
+def lisbon_hours(day: dt.date, files: dict[dt.date, dict]) -> list[dict]:
+    """Hours of the Lisbon calendar day `day`: [{'label','start_utc','pt','es','n'}...] (23/24/25 entries).
+
+    OMIE periods are CET; Lisbon is one hour behind, so the Lisbon hour 23:00 needs the NEXT day's file.
+    Missing hours have pt=None.
+    """
+    pool: dict[dt.datetime, list[tuple[float, float]]] = {}
+    for d in (day - dt.timedelta(days=1), day, day + dt.timedelta(days=1)):
+        parsed = files.get(d)
+        if not parsed:
+            continue
+        for start_utc, pt, es in period_starts(parsed):
+            hour_utc = start_utc.replace(minute=0, second=0, microsecond=0)
+            pool.setdefault(hour_utc, []).append((pt, es))
+    day_start = dt.datetime.combine(day, dt.time(0), tzinfo=DISPLAY_TZ).astimezone(dt.timezone.utc)
+    day_end = dt.datetime.combine(day + dt.timedelta(days=1), dt.time(0), tzinfo=DISPLAY_TZ).astimezone(dt.timezone.utc)
+    out: list[dict] = []
+    seen_labels: dict[str, int] = {}
+    t = day_start
+    while t < day_end:
+        local = t.astimezone(DISPLAY_TZ)
+        label = f"{local:%H:%M}"
+        seen_labels[label] = seen_labels.get(label, 0) + 1
+        if seen_labels[label] > 1:
+            label += " (b)"   # repeated hour on the clock-change night
+        vals = pool.get(t)
+        pt = round(sum(v[0] for v in vals) / len(vals), 2) if vals else None
+        es = round(sum(v[1] for v in vals) / len(vals), 2) if vals else None
+        out.append({"label": label, "start_utc": t.isoformat(), "pt": pt, "es": es, "n": len(vals) if vals else 0})
+        t += dt.timedelta(hours=1)
+    return out
+
+
+def stats(hours: list[dict]) -> dict:
+    """Averages and windows over the hours that have a price. Windows are on consecutive available hours."""
+    vals = [(i, h["pt"]) for i, h in enumerate(hours) if h["pt"] is not None]
+    if not vals:
+        return {"available": 0}
+    prices = [v for _, v in vals]
+    avg = round(sum(prices) / len(prices), 2)
+    cheapest = sorted(vals, key=lambda x: (x[1], x[0]))[:WINDOW_HOURS]
+    dearest = sorted(vals, key=lambda x: (-x[1], x[0]))[:WINDOW_HOURS]
+
+    def best_window(sign: int) -> dict | None:
+        best = None
+        for s in range(len(hours) - WINDOW_HOURS + 1):
+            seg = hours[s:s + WINDOW_HOURS]
+            if any(h["pt"] is None for h in seg):
+                continue
+            m = sum(h["pt"] for h in seg) / WINDOW_HOURS
+            if best is None or sign * m < sign * best["avg"]:
+                best = {"start": s, "end": s + WINDOW_HOURS, "avg": round(m, 2)}
+        return best
+
+    return {
+        "available": len(vals), "avg": avg, "min": min(prices), "max": max(prices),
+        "cheap_window": best_window(+1), "dear_window": best_window(-1),
+        "cheapest_hours": sorted(i for i, _ in cheapest), "dearest_hours": sorted(i for i, _ in dearest),
+    }
+
+
+# ----------------------------------------------------------------------------- TARIFF (estimate)
+def load_tariff() -> dict:
+    p = CONFIG_DIR / "tariff.json"
+    t = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {"enabled": False}
+    if t.get("enabled") and not (t.get("snapshot_date") and t.get("valid_from")):
+        log.warning("tariff.json enabled without snapshot_date/valid_from — estimate disabled")
+        t["enabled"] = False
+    return t
+
+
+def estimate_kwh(pt_eur_mwh: float, t: dict) -> float:
+    base = pt_eur_mwh / 1000.0 * float(t.get("losses_factor", 1.0))
+    adders = float(t.get("network_access_eur_per_kwh", 0)) + float(t.get("supplier_margin_eur_per_kwh", 0)) \
+        + float(t.get("other_adders_eur_per_kwh", 0))
+    return round((base + adders) * (1.0 + float(t.get("vat", 0))), 4)
+
+
+# ----------------------------------------------------------------------------- RENDER
+def esc(s: object) -> str:
+    return html.escape(str(s), quote=True)
+
+
+def fmt(v: float | None, nd: int = 2) -> str:
+    return "—" if v is None else f"{v:.{nd}f}"
+
+
+def window_text(hours: list[dict], w: dict | None) -> str:
+    if not w:
+        return "—"
+    a = hours[w["start"]]["label"].split()[0]
+    b = hours[w["end"] - 1]["label"].split()[0]
+    b_end = f"{(int(b[:2]) + 1) % 24:02d}:00"
+    return f"{a}–{b_end}"
+
+
+def svg_chart(hours: list[dict], st: dict) -> str:
+    """Inline SVG bar chart, no JS. Green = cheapest consecutive window, red = dearest, grey = no data."""
+    n = len(hours)
+    w, h, pad_l, pad_b, pad_t = 760, 260, 44, 30, 14
+    bw = (w - pad_l - 8) / n
+    prices = [x["pt"] for x in hours if x["pt"] is not None]
+    lo = min(0.0, min(prices)) if prices else 0.0
+    hi = max(prices) if prices else 1.0
+    hi = hi if hi > lo else lo + 1
+    cw, dw = st.get("cheap_window"), st.get("dear_window")
+
+    def y(v: float) -> float:
+        return pad_t + (h - pad_t - pad_b) * (1 - (v - lo) / (hi - lo))
+
+    parts = [f'<svg class="chart" viewBox="0 0 {w} {h}" role="img" aria-label="Preço por hora, €/MWh">']
+    for g in range(5):
+        v = lo + (hi - lo) * g / 4
+        parts.append(f'<line class="grid" x1="{pad_l}" y1="{y(v):.1f}" x2="{w - 4}" y2="{y(v):.1f}"/>'
+                     f'<text class="ax" x="{pad_l - 4}" y="{y(v) + 4:.1f}" text-anchor="end">{v:.0f}</text>')
+    for i, x in enumerate(hours):
+        cls = "bar"
+        if cw and cw["start"] <= i < cw["end"]:
+            cls += " cheap"
+        elif dw and dw["start"] <= i < dw["end"]:
+            cls += " dear"
+        x0 = pad_l + i * bw + 1
+        if x["pt"] is None:
+            parts.append(f'<rect class="bar nodata" x="{x0:.1f}" y="{pad_t}" width="{bw - 2:.1f}" height="{h - pad_t - pad_b}">'
+                         f'<title>{esc(x["label"])}: sem dados / no data</title></rect>')
+        else:
+            top, base = y(max(x["pt"], 0)), y(min(x["pt"], 0))
+            parts.append(f'<rect class="{cls}" x="{x0:.1f}" y="{top:.1f}" width="{bw - 2:.1f}" height="{max(base - top, 1):.1f}">'
+                         f'<title>{esc(x["label"])}: {x["pt"]:.2f} €/MWh</title></rect>')
+        if i % 3 == 0 or n < 12:
+            parts.append(f'<text class="ax" x="{x0 + bw / 2:.1f}" y="{h - 8}" text-anchor="middle">{esc(x["label"][:2])}</text>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def hours_table(hours: list[dict], st: dict, tariff: dict, lang: str) -> str:
+    cw, dw = st.get("cheap_window"), st.get("dear_window")
+    head = {"pt": ("Hora", "€/MWh (OMIE PT)", "€/kWh energia", "Estimativa €/kWh"),
+            "en": ("Hour", "€/MWh (OMIE PT)", "€/kWh energy", "Estimate €/kWh")}[lang]
+    cols = head[:3] + ((head[3],) if tariff.get("enabled") else ())
+    out = ["<table class=\"hours\"><thead><tr>" + "".join(f"<th>{esc(c)}</th>" for c in cols) + "</tr></thead><tbody>"]
+    for i, x in enumerate(hours):
+        cls = "cheap" if cw and cw["start"] <= i < cw["end"] else "dear" if dw and dw["start"] <= i < dw["end"] else ""
+        cells = [esc(x["label"]), fmt(x["pt"]), fmt(None if x["pt"] is None else x["pt"] / 1000, 3)]
+        if tariff.get("enabled"):
+            cells.append(fmt(None if x["pt"] is None else estimate_kwh(x["pt"], tariff), 3))
+        out.append(f'<tr class="{cls}">' + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
+    out.append("</tbody></table>")
+    return "".join(out)
+
+
+T = {
+    "pt": {
+        "title": "Luz amanhã — preço da eletricidade por hora (OMIE Portugal)",
+        "h1": "Luz amanhã",
+        "lead": "Preço grossista da eletricidade em Portugal por hora (mercado diário OMIE) e as horas mais baratas para ligar a máquina, o termoacumulador ou carregar o carro.",
+        "for_day": "Preços para",
+        "status_ok": "Dados de amanhã publicados pelo OMIE.",
+        "status_missing": f"O OMIE ainda não publicou os preços de amanhã (costuma publicar por volta das {PUBLISH_HINT_LOCAL}). Próxima tentativa às {RETRY_HINT_UTC} UTC. Abaixo: os preços de hoje.",
+        "cheap": "Mais barato (3 horas seguidas)", "dear": "Mais caro (3 horas seguidas)",
+        "cheapest3": "3 horas mais baratas", "dearest3": "3 horas mais caras",
+        "avg": "Média do dia", "vs_yday": "vs. ontem", "vs_week": "vs. média dos últimos 7 dias",
+        "hour23": "A hora 23:00 só fica disponível no dia seguinte (o OMIE publica em hora de Espanha).",
+        "fact": "€/MWh é o preço marginal do mercado diário OMIE para Portugal — um facto, sem impostos, redes nem margem do comercializador.",
+        "est_off": "A estimativa em €/kWh com parcelas reguladas (ERSE) aparece quando o responsável as fixar com data em config/tariff.json. Até lá mostramos só o preço OMIE.",
+        "est_on": "Estimativa, não é a sua fatura:",
+        "archive": "Arquivo por dia", "json": "JSON", "feed": "Feed",
+        "tg": "Receber todos os dias no Telegram",
+        "footer": "Feito por agentes de IA (agent-team) sem edição humana · responsável: ",
+        "updated": "atualizado",
+        "nodata_all": "Sem dados para este dia.",
+        "en_link": "English below",
+    },
+    "en": {
+        "title": "Luz amanhã — tomorrow's electricity price by hour (OMIE Portugal)",
+        "h1": "Electricity price tomorrow — Portugal",
+        "lead": "Wholesale hourly electricity price for Portugal (OMIE day-ahead market) and the cheapest hours to run the washing machine, the water heater or charge the car.",
+        "for_day": "Prices for",
+        "status_ok": "Tomorrow's prices are published by OMIE.",
+        "status_missing": f"OMIE has not published tomorrow's prices yet (usually around {PUBLISH_HINT_LOCAL} local time). Next attempt at {RETRY_HINT_UTC} UTC. Below: today's prices.",
+        "cheap": "Cheapest (3 consecutive hours)", "dear": "Most expensive (3 consecutive hours)",
+        "cheapest3": "3 cheapest hours", "dearest3": "3 most expensive hours",
+        "avg": "Day average", "vs_yday": "vs. yesterday", "vs_week": "vs. last 7 days average",
+        "hour23": "The 23:00 hour becomes available the next day (OMIE publishes in Spanish time).",
+        "fact": "€/MWh is the OMIE day-ahead marginal price for Portugal — a fact, before taxes, grid fees and supplier margin.",
+        "est_off": "A €/kWh estimate with regulated components (ERSE) appears once the responsible person sets them with a date in config/tariff.json. Until then only the OMIE price is shown.",
+        "est_on": "Estimate, not your bill:",
+        "archive": "Archive by day", "json": "JSON", "feed": "Feed",
+        "tg": "Get it daily on Telegram",
+        "footer": "Made by AI agents (agent-team) without human editing · responsible: ",
+        "updated": "updated",
+        "nodata_all": "No data for this day.",
+        "en_link": "",
+    },
+}
+
+
+def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict, status: str | None) -> str:
+    t = T[lang]
+    weekday_pt = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")[day.weekday()]
+    labels = {"pt": f"{day:%d.%m.%Y} ({weekday_pt})", "en": f"{day:%A %d %B %Y}"}[lang]
+    p = [f'<section id="{lang}" lang="{lang}">', f"<h2>{esc(t['h1'])} — {esc(labels)}</h2>", f"<p class=\"lead\">{esc(t['lead'])}</p>"]
+    if status:
+        p.append(f'<p class="status">{esc(t[status])}</p>')
+    if not st.get("available"):
+        p.append(f"<p>{esc(t['nodata_all'])}</p></section>")
+        return "".join(p)
+    ch = [i for i in st["cheapest_hours"]]
+    p.append('<dl class="kpi">')
+    p.append(f"<div><dt>{esc(t['cheap'])}</dt><dd class=\"g\">{esc(window_text(hours, st['cheap_window']))} · {fmt(st['cheap_window']['avg']) if st['cheap_window'] else '—'} €/MWh</dd></div>")
+    p.append(f"<div><dt>{esc(t['dear'])}</dt><dd class=\"r\">{esc(window_text(hours, st['dear_window']))} · {fmt(st['dear_window']['avg']) if st['dear_window'] else '—'} €/MWh</dd></div>")
+    p.append(f"<div><dt>{esc(t['cheapest3'])}</dt><dd>{esc(', '.join(hours[i]['label'] for i in ch))}</dd></div>")
+    p.append(f"<div><dt>{esc(t['dearest3'])}</dt><dd>{esc(', '.join(hours[i]['label'] for i in st['dearest_hours']))}</dd></div>")
+    yd = cmp.get("vs_yesterday")
+    wk = cmp.get("vs_week")
+    p.append(f"<div><dt>{esc(t['avg'])}</dt><dd>{fmt(st['avg'])} €/MWh"
+             + (f" · {esc(t['vs_yday'])} {yd:+.1f}%" if yd is not None else "")
+             + (f" · {esc(t['vs_week'])} {wk:+.1f}%" if wk is not None else "") + "</dd></div>")
+    p.append("</dl>")
+    p.append(svg_chart(hours, st))
+    if any(x["pt"] is None for x in hours):
+        p.append(f'<p class="note">{esc(t["hour23"])}</p>')
+    p.append(f'<p class="note">{esc(t["fact"])}</p>')
+    if tariff.get("enabled"):
+        p.append(f'<p class="note"><strong>{esc(t["est_on"])}</strong> {esc(tariff.get("label_" + lang, ""))} — '
+                 f'{esc(tariff.get("source", ""))}, {esc(tariff.get("valid_from", ""))} (snapshot {esc(tariff.get("snapshot_date", ""))}).</p>')
+    else:
+        p.append(f'<p class="note">{esc(t["est_off"])}</p>')
+    p.append(hours_table(hours, st, tariff, lang))
+    p.append("</section>")
+    return "".join(p)
+
+
+def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: str = "pt", desc: str = "") -> str:
+    t = T["pt"]
+    return f"""<!DOCTYPE html>
+<html lang="{lang_first}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{esc(title)}</title>
+<meta name="description" content="{esc(desc or T['en']['lead'])}">
+<link rel="canonical" href="{esc(canonical)}">
+<link rel="alternate" type="application/rss+xml" title="{esc(SITE_NAME)}" href="{SITE_BASE}/feed.xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top"><a href="/" class="brand">{esc(SITE_NAME)}</a>
+<nav><a href="#en">EN</a> <a href="/d/">{esc(t['archive'])}</a> <a href="/tomorrow.json">{esc(t['json'])}</a> <a href="/feed.xml">{esc(t['feed'])}</a> <a href="/go/telegram/">Telegram</a> <a href="/legal/">Legal</a></nav></header>
+<main>
+{body}
+</main>
+<footer><p>{esc(t['footer'])}{esc(RESPONSIBLE)} · {esc(t['updated'])} {built:%Y-%m-%d %H:%M} UTC</p>
+<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)} · {esc(T['en']['updated'])} {built:%Y-%m-%d %H:%M} UTC · <a href="/legal/">legal</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
+</body>
+</html>
+"""
+
+
+def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict, built: dt.datetime, source_file: str | None) -> dict:
+    return {
+        "date": day.isoformat(), "timezone": "Europe/Lisbon", "unit": "EUR/MWh", "market": "OMIE day-ahead, Portugal",
+        "source_file": source_file, "built_utc": built.isoformat(timespec="seconds"),
+        "hours": [{"hour": x["label"], "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_es_eur_mwh": x["es"],
+                   "energy_eur_kwh": None if x["pt"] is None else round(x["pt"] / 1000, 4),
+                   **({"estimate_eur_kwh": None if x["pt"] is None else estimate_kwh(x["pt"], tariff)} if tariff.get("enabled") else {})}
+                  for x in hours],
+        "stats": {k: v for k, v in st.items()},
+        "comparison": cmp,
+        "cheap_window": {"hours": window_text(hours, st["cheap_window"]), "avg_eur_mwh": st["cheap_window"]["avg"]} if st.get("cheap_window") else None,
+        "dear_window": {"hours": window_text(hours, st["dear_window"]), "avg_eur_mwh": st["dear_window"]["avg"]} if st.get("dear_window") else None,
+        "estimate": {"enabled": bool(tariff.get("enabled")), "note": "estimate, not a bill", **({k: tariff[k] for k in ("source", "valid_from", "snapshot_date")} if tariff.get("enabled") else {})},
+        "disclosure": f"Made by AI agents (agent-team) without human editing; responsible: {RESPONSIBLE}. License CC BY 4.0.",
+    }
+
+
+# ----------------------------------------------------------------------------- STATIC PAGES
+def write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    log.debug("wrote %s (%d bytes)", path.relative_to(ROOT), len(text))
+
+
+def static_pages(built: dt.datetime) -> None:
+    legal = f"""<section lang="pt"><h1>Legal</h1>
+<p><strong>Responsável:</strong> {esc(RESPONSIBLE)}. Este site é feito e atualizado por agentes de IA (agent-team) sem edição humana; o responsável é uma pessoa.</p>
+<p><strong>Fonte dos dados:</strong> OMIE — Operador do Mercado Ibérico de Energia, ficheiros públicos do mercado diário (<code>marginalpdbcpt_AAAAMMDD.1</code>, preço marginal para Portugal, €/MWh). Os valores são reproduzidos sem alteração; a agregação por hora é a média das quatro quartos de hora.</p>
+<p><strong>Não é aconselhamento financeiro nem tarifário.</strong> O preço OMIE não é a sua fatura: não inclui redes, impostos, taxas nem a margem do comercializador. Qualquer valor marcado «estimativa» é uma aproximação com parcelas datadas e pode estar errado. Confirme sempre com o seu comercializador.</p>
+<p><strong>Privacidade:</strong> sem cookies, sem rastreio, sem formulários. O servidor guarda registos de acesso técnicos (endereço IP, user-agent) por um período limitado para contagem de visitas e segurança.</p>
+<p><strong>Licença:</strong> textos, gráficos e JSON deste site — <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Os dados de origem pertencem ao OMIE.</p>
+<p>Termos completos, contacto e política de dados: <a href="{LEGAL_UPSTREAM}">{LEGAL_UPSTREAM}</a>.</p></section>
+<section id="en" lang="en"><h2>Legal (EN)</h2>
+<p><strong>Responsible:</strong> {esc(RESPONSIBLE)}. Built and updated by AI agents (agent-team) without human editing; the responsible party is a person.</p>
+<p><strong>Data source:</strong> OMIE, the Iberian electricity market operator, public day-ahead files (<code>marginalpdbcpt_YYYYMMDD.1</code>, Portuguese marginal price, €/MWh). Values are reproduced unchanged; hourly values are the mean of the four quarter-hours.</p>
+<p><strong>Not financial or tariff advice.</strong> The OMIE price is not your bill: it excludes grid fees, taxes, levies and supplier margin. Anything labelled "estimate" is an approximation with dated components and may be wrong. Always check with your supplier.</p>
+<p><strong>Privacy:</strong> no cookies, no tracking, no forms. The server keeps technical access logs (IP address, user agent) for a limited time for visit counting and security.</p>
+<p><strong>License:</strong> site texts, charts and JSON — CC BY 4.0. Source data belongs to OMIE.</p>
+<p>Full terms, contact and data policy: <a href="{LEGAL_UPSTREAM}">{LEGAL_UPSTREAM}</a>.</p></section>"""
+    write(PUBLIC_DIR / "legal" / "index.html", page("Legal — " + SITE_NAME, legal, built, SITE_BASE + "/legal/"))
+
+    tg = f"""<section lang="pt"><h1>Telegram</h1>
+<p>A redirecionar para o canal… Se não abrir: <a href="{esc(TELEGRAM_URL)}">{esc(TELEGRAM_URL)}</a></p>
+<p lang="en">Redirecting to the Telegram channel… If nothing happens: <a href="{esc(TELEGRAM_URL)}">{esc(TELEGRAM_URL)}</a></p></section>"""
+    tg_page = page("Telegram — " + SITE_NAME, tg, built, SITE_BASE + "/go/telegram/").replace(
+        '<meta name="viewport"', f'<meta http-equiv="refresh" content="1;url={esc(TELEGRAM_URL)}">\n<meta name="robots" content="noindex">\n<meta name="viewport"', 1)
+    write(PUBLIC_DIR / "go" / "telegram" / "index.html", tg_page)
+
+    nf = """<section lang="pt"><h1>Página não encontrada (404)</h1>
+<p>Esta página não existe. Páginas que existem: <a href="/">preço de amanhã</a> · <a href="/d/">arquivo por dia</a> (<code>/d/AAAA-MM-DD/</code>) · <a href="/tomorrow.json">tomorrow.json</a> · <a href="/today.json">today.json</a> · <a href="/feed.xml">feed</a> · <a href="/legal/">legal</a>.</p>
+<p lang="en">Page not found. Existing pages: <a href="/">tomorrow's price</a> · <a href="/d/">archive</a> · <a href="/tomorrow.json">tomorrow.json</a> · <a href="/llms.txt">llms.txt</a>.</p></section>"""
+    write(PUBLIC_DIR / "404.html", page("404 — " + SITE_NAME, nf, built, SITE_BASE + "/404.html"))
+
+    write(PUBLIC_DIR / "robots.txt", f"User-agent: *\nAllow: /\nDisallow: /go/\nSitemap: {SITE_BASE}/sitemap.xml\n")
+    write(PUBLIC_DIR / "llms.txt", f"""# {SITE_NAME} ({SITE_HOST})
+
+> Tomorrow's hourly wholesale electricity price for Portugal (OMIE day-ahead market, EUR/MWh) with the cheapest and most expensive 3-hour windows. Portuguese and English. Made by AI agents (agent-team) without human editing; responsible: {RESPONSIBLE}. License CC BY 4.0.
+
+## Machine-readable
+- {SITE_BASE}/tomorrow.json — tomorrow (Lisbon calendar day), hours in Europe/Lisbon time, price_pt_eur_mwh per hour, cheap_window, dear_window, stats
+- {SITE_BASE}/today.json — today
+- {SITE_BASE}/d/YYYY-MM-DD/index.json — archive, one file per day
+- {SITE_BASE}/feed.xml — RSS, one item per published day
+- {SITE_BASE}/build.json — when the site was last built and which OMIE files it used
+
+## Facts about the data
+- Source: OMIE public file marginalpdbcpt_YYYYMMDD.1 (https://www.omie.es/), column "price Portugal". 96 quarter-hour periods in CET/CEST, averaged per Lisbon hour.
+- OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15 and 13:45 UTC.
+- The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
+- EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
+
+## Pages
+- {SITE_BASE}/ — tomorrow (or today if OMIE has not published yet), PT then EN
+- {SITE_BASE}/d/ — archive index
+- {SITE_BASE}/legal/ — responsible party, source, license, no tracking
+""")
+
+
+# ----------------------------------------------------------------------------- BUILD
+def comparison(day: dt.date, files: dict[dt.date, dict]) -> dict:
+    """Average of day vs. yesterday and vs. the mean of the previous 7 days (based on the OMIE file days, PT column)."""
+    def file_avg(d: dt.date) -> float | None:
+        f = files.get(d)
+        return round(sum(p for _, p, _ in f["periods"]) / len(f["periods"]), 2) if f else None
+    today_avg = file_avg(day)
+    y_avg = file_avg(day - dt.timedelta(days=1))
+    week = [a for a in (file_avg(day - dt.timedelta(days=i)) for i in range(1, HISTORY_DAYS + 1)) if a is not None]
+    out = {"day_avg_file": today_avg, "yesterday_avg": y_avg, "week_avg": round(sum(week) / len(week), 2) if week else None,
+           "week_days": len(week), "vs_yesterday": None, "vs_week": None}
+    if today_avg is not None and y_avg:
+        out["vs_yesterday"] = round((today_avg / y_avg - 1) * 100, 1)
+    if today_avg is not None and out["week_avg"]:
+        out["vs_week"] = round((today_avg / out["week_avg"] - 1) * 100, 1)
+    return out
+
+
+def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, status: str | None, index_page: bool) -> dict:
+    hours = lisbon_hours(day, files)
+    st = stats(hours)
+    cmp = comparison(day, files)
+    src = omie_filename(day) if day in files else None
+    body = day_section("pt", day, hours, st, cmp, tariff, status) + day_section("en", day, hours, st, cmp, tariff, status)
+    title = f"{SITE_NAME} — {day:%d.%m.%Y}"
+    canonical = SITE_BASE + "/" if index_page else f"{SITE_BASE}/d/{day.isoformat()}/"
+    desc = ""
+    if st.get("available"):
+        desc = (f"Luz {day:%d.%m}: mais barato {window_text(hours, st['cheap_window'])} ({fmt(st['cheap_window']['avg'])} €/MWh), "
+                f"mais caro {window_text(hours, st['dear_window'])} ({fmt(st['dear_window']['avg'])} €/MWh), média {fmt(st['avg'])} €/MWh.")
+    html_text = page(title, body, built, canonical, desc=desc)
+    data = day_json(day, hours, st, cmp, tariff, built, src)
+    write(PUBLIC_DIR / "d" / day.isoformat() / "index.html", html_text)
+    write(PUBLIC_DIR / "d" / day.isoformat() / "index.json", json.dumps(data, ensure_ascii=False, indent=1))
+    if index_page:
+        write(PUBLIC_DIR / "index.html", html_text)
+    return data
+
+
+def archive_index(days: list[dt.date], built: dt.datetime) -> None:
+    items = "".join(f'<li><a href="/d/{d.isoformat()}/">{d:%d.%m.%Y}</a> · <a href="/d/{d.isoformat()}/index.json">json</a></li>'
+                    for d in sorted(days, reverse=True))
+    body = f'<section lang="pt"><h1>Arquivo por dia / Archive</h1><ul class="archive">{items}</ul></section>'
+    write(PUBLIC_DIR / "d" / "index.html", page("Arquivo — " + SITE_NAME, body, built, SITE_BASE + "/d/"))
+
+
+def feed(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) -> None:
+    items = []
+    for d in sorted(days, reverse=True)[:FEED_ITEMS]:
+        j = per_day.get(d)
+        if not j or not j["stats"].get("available"):
+            continue
+        s = j["stats"]
+        txt = (f"Luz {d:%d.%m}: mais barato {j['cheap_window']['hours']} ({j['cheap_window']['avg_eur_mwh']:.2f} €/MWh), "
+               f"mais caro {j['dear_window']['hours']} ({j['dear_window']['avg_eur_mwh']:.2f} €/MWh), média {s['avg']:.2f} €/MWh. "
+               f"Cheapest {j['cheap_window']['hours']}, dearest {j['dear_window']['hours']}. Publicado por um agente de IA; responsável: {RESPONSIBLE}.")
+        pub = dt.datetime.combine(d - dt.timedelta(days=1), dt.time(13, 30), tzinfo=dt.timezone.utc)
+        title = f"Luz {d:%d.%m.%Y}: mais barato " + j["cheap_window"]["hours"]
+        items.append(f"<item><title>{esc(title)}</title>"
+                     f"<link>{SITE_BASE}/d/{d.isoformat()}/</link><guid>{SITE_BASE}/d/{d.isoformat()}/</guid>"
+                     f"<pubDate>{pub:%a, %d %b %Y %H:%M:%S} +0000</pubDate><description>{esc(txt)}</description></item>")
+    xml = (f'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>{esc(SITE_NAME)}</title><link>{SITE_BASE}/</link>'
+           f"<description>{esc(T['en']['lead'])} Made by AI agents; responsible: {esc(RESPONSIBLE)}.</description><language>pt</language>"
+           f"<lastBuildDate>{built:%a, %d %b %Y %H:%M:%S} +0000</lastBuildDate>{''.join(items)}</channel></rss>")
+    write(PUBLIC_DIR / "feed.xml", xml)
+    urls = [SITE_BASE + "/", SITE_BASE + "/d/", SITE_BASE + "/legal/"] + [f"{SITE_BASE}/d/{d.isoformat()}/" for d in sorted(days)]
+    write(PUBLIC_DIR / "sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+          + "".join(f"<url><loc>{u}</loc></url>" for u in urls) + "</urlset>")
+
+
+def build(target: dt.date, offline: bool) -> int:
+    built = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+    today = dt.datetime.now(DISPLAY_TZ).date()
+    tariff = load_tariff()
+    log.info("build start target=%s today(Lisbon)=%s offline=%s tariff_enabled=%s", target, today, offline, tariff.get("enabled"))
+
+    files: dict[dt.date, dict] = {}
+    wanted = [target + dt.timedelta(days=1), target] + [target - dt.timedelta(days=i) for i in range(1, FETCH_BACK_DAYS + 1)]
+    for d in wanted:
+        text = fetch_day(d, offline=offline)
+        if text:
+            try:
+                files[d] = parse_omie(text)
+            except ValueError as e:
+                log.error("parse failed for %s: %s", d, e)
+    # also every cached day (archive pages are regenerated from cache; cheap)
+    for p in sorted(DATA_DIR.glob("*.txt")):
+        d = dt.date.fromisoformat(p.stem)
+        if d not in files:
+            try:
+                files[d] = parse_omie(p.read_text(encoding="latin-1"))
+            except ValueError as e:
+                log.error("parse failed for cached %s: %s", p.name, e)
+    log.info("files available: %s", ", ".join(d.isoformat() for d in sorted(files)))
+
+    have_target = target in files
+    main_day = target if have_target else today
+    status = "status_ok" if have_target else "status_missing"
+    if not have_target and today not in files:
+        log.error("neither %s nor today %s available — index will say so", target, today)
+    per_day: dict[dt.date, dict] = {}
+    for d in sorted(files):
+        per_day[d] = render_day(d, files, tariff, built, None, index_page=False)
+    main = render_day(main_day, files, tariff, built, status, index_page=True)
+    per_day[main_day] = main
+    tomorrow = per_day.get(target) or {"date": target.isoformat(), "available": False, "note": "not published by OMIE yet",
+                                        "next_attempt_utc": RETRY_HINT_UTC, "built_utc": built.isoformat(timespec="seconds")}
+    write(PUBLIC_DIR / "tomorrow.json", json.dumps(tomorrow, ensure_ascii=False, indent=1))
+    write(PUBLIC_DIR / "today.json", json.dumps(per_day.get(today) or {"date": today.isoformat(), "available": False}, ensure_ascii=False, indent=1))
+    archive_index(list(files), built)
+    feed(list(files), per_day, built)
+    static_pages(built)
+    write(PUBLIC_DIR / "build.json", json.dumps({
+        "built_utc": built.isoformat(timespec="seconds"), "target_date": target.isoformat(), "target_available": have_target,
+        "index_shows": main_day.isoformat(), "files": {d.isoformat(): omie_filename(d) for d in sorted(files)},
+        "source": OMIE_URL.format(parent=OMIE_PARENT, ymd="YYYYMMDD", version=OMIE_VERSION), "tariff_enabled": bool(tariff.get("enabled")),
+        "builder": "build.py (python3 stdlib)",
+    }, ensure_ascii=False, indent=1))
+    log.info("build done: index shows %s (%s), %d archive days, tariff_enabled=%s", main_day, status, len(files), tariff.get("enabled"))
+    return 0 if (have_target or today in files) else 2
+
+
+# ----------------------------------------------------------------------------- SELFTEST
+def selftest() -> int:
+    ok = True
+
+    def check(cond: bool, msg: str) -> None:
+        nonlocal ok
+        log.log(logging.INFO if cond else logging.ERROR, "%s %s", "PASS" if cond else "FAIL", msg)
+        ok = ok and cond
+
+    fx = {p.name: parse_omie(p.read_text(encoding="latin-1")) for p in sorted(FIXTURES_DIR.glob("marginalpdbcpt_*.1"))}
+    f29 = fx["marginalpdbcpt_20261029.1"]
+    check(len(f29["periods"]) == 96 and f29["resolution_min"] == 15, "20261029: 96 quarter-hours")
+    check(sum(1 for _, pt, es in f29["periods"] if pt != es) == 24, "20261029: 24 split periods (PT != ES)")
+    p69 = f29["periods"][68]
+    check(p69 == (69, 282.01, 251.9), f"20261029 period 69 = PT 282.01 / ES 251.9 (got {p69})")
+    f25 = fx["marginalpdbcpt_20261025.1"]
+    check(len(f25["periods"]) == 100, "20261025: 100 rows (25-hour day)")
+    hrs25 = lisbon_hours(dt.date(2026, 10, 25), {dt.date(2026, 10, 25): f25})
+    check(len(hrs25) == 25, f"20261025: 25 Lisbon hours (got {len(hrs25)})")
+    check(sum(1 for h in hrs25 if "(b)" in h["label"]) == 1, "20261025: one repeated hour label")
+    f03 = fx["marginalpdbcpt_20261103.1"]
+    hrs = lisbon_hours(dt.date(2026, 11, 3), {dt.date(2026, 11, 3): f03})
+    check(len(hrs) == 24 and hrs[0]["label"] == "00:00", "20261103: 24 Lisbon hours starting 00:00")
+    check(hrs[23]["pt"] is None and hrs[22]["pt"] is not None, "20261103: hour 23 missing without next-day file, hour 22 present")
+    check(hrs[0]["pt"] == round(sum(p for _, p, _ in f03["periods"][4:8]) / 4, 2), "20261103: Lisbon 00:00 = mean of OMIE periods 5..8 (CET 01:00)")
+    st = stats(hrs)
+    check(st["available"] == 23 and st["cheap_window"] is not None and st["dear_window"] is not None, "stats: windows computed on 23 hours")
+    cw = st["cheap_window"]
+    check(all(hrs[i]["pt"] is not None for i in range(cw["start"], cw["end"])), "cheap window has no gaps")
+    check(sum(1 for p in [h["pt"] for h in hrs] if p is None) == 1, "exactly one missing hour")
+    bad = "MARGINALPDBCPT;\n2026;11;03;1;1;1;\n*\n"
+    try:
+        parse_omie(bad); check(False, "row-count guard")
+    except ValueError:
+        check(True, "row-count guard rejects 1-row file")
+    check(not looks_like_omie("<!DOCTYPE html><html>404</html>"), "HTML body is not an OMIE file")
+    log.info("selftest %s", "OK" if ok else "FAILED")
+    return 0 if ok else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--date", help="target day YYYY-MM-DD (default: tomorrow in Europe/Lisbon)")
+    ap.add_argument("--offline", action="store_true", help="never touch the network; use data/omie/ cache")
+    ap.add_argument("--selftest", action="store_true", help="parse fixtures, check invariants, exit")
+    ap.add_argument("-v", "--verbose", action="store_true")
+    a = ap.parse_args(argv)
+    logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO, format=LOG_FORMAT, stream=sys.stderr)
+    if a.selftest:
+        return selftest()
+    target = dt.date.fromisoformat(a.date) if a.date else dt.datetime.now(DISPLAY_TZ).date() + dt.timedelta(days=1)
+    return build(target, offline=a.offline)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

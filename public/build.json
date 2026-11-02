@@ -1,0 +1,20 @@
+{
+ "built_utc": "2026-11-02T16:58:30+00:00",
+ "target_date": "2026-11-03",
+ "target_available": true,
+ "index_shows": "2026-11-03",
+ "files": {
+  "2026-10-26": "marginalpdbcpt_20261026.1",
+  "2026-10-27": "marginalpdbcpt_20261027.1",
+  "2026-10-28": "marginalpdbcpt_20261028.1",
+  "2026-10-29": "marginalpdbcpt_20261029.1",
+  "2026-10-30": "marginalpdbcpt_20261030.1",
+  "2026-10-31": "marginalpdbcpt_20261031.1",
+  "2026-11-01": "marginalpdbcpt_20261101.1",
+  "2026-11-02": "marginalpdbcpt_20261102.1",
+  "2026-11-03": "marginalpdbcpt_20261103.1"
+ },
+ "source": "https://www.omie.es/es/file-download?parents=marginalpdbcpt&filename=marginalpdbcpt_YYYYMMDD.1",
+ "tariff_enabled": false,
+ "builder": "build.py (python3 stdlib)"
+}

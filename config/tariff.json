@@ -1,0 +1,14 @@
+{
+  "_comment": "Set by the owner only. OMIE €/MWh is a fact; everything in this file turns it into an ESTIMATE of €/kWh. Keep 'enabled': false until the regulated components are copied from ERSE with a date. All adders in €/kWh, VAT as a fraction.",
+  "enabled": false,
+  "label_pt": "estimativa de tarifa indexada (não é a sua fatura)",
+  "label_en": "indexed-tariff estimate (not your bill)",
+  "source": "ERSE — tarifas de acesso às redes BTN (to be filled by the owner)",
+  "valid_from": "",
+  "snapshot_date": "",
+  "network_access_eur_per_kwh": 0.0,
+  "supplier_margin_eur_per_kwh": 0.0,
+  "other_adders_eur_per_kwh": 0.0,
+  "losses_factor": 1.0,
+  "vat": 0.0
+}
