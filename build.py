@@ -302,6 +302,9 @@ def svg_chart(hours: list[dict], st: dict) -> str:
     return "".join(parts)
 
 
+HOUR23_ROW_NOTE = {"pt": "publicado amanhã pela OMIE", "en": "published by OMIE tomorrow"}
+
+
 def hours_table(hours: list[dict], st: dict, tariff: dict, lang: str) -> str:
     cw, dw = st.get("cheap_window"), st.get("dear_window")
     head = {"pt": ("Hora", "€/MWh (OMIE PT)", "€/kWh energia", "Estimativa €/kWh"),
@@ -313,6 +316,10 @@ def hours_table(hours: list[dict], st: dict, tariff: dict, lang: str) -> str:
         cells = [esc(x["label"]), fmt(x["pt"]), fmt(None if x["pt"] is None else x["pt"] / 1000, 3)]
         if tariff.get("enabled"):
             cells.append(fmt(None if x["pt"] is None else estimate_kwh(x["pt"], tariff), 3))
+        if x["pt"] is None and x["label"] == "23:00":
+            ncols = len(cols) - 1
+            out.append(f'<tr class="{cls} pending"><td>{cells[0]}</td><td colspan="{ncols}">{esc(HOUR23_ROW_NOTE[lang])}</td></tr>')
+            continue
         out.append(f'<tr class="{cls}">' + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
     out.append("</tbody></table>")
     return "".join(out)
