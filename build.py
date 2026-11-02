@@ -375,7 +375,8 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     t = T[lang]
     weekday_pt = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")[day.weekday()]
     labels = {"pt": f"{day:%d.%m.%Y} ({weekday_pt})", "en": f"{day:%A %d %B %Y}"}[lang]
-    p = [f'<section id="{lang}" lang="{lang}">', f"<h2>{esc(t['h1'])} — {esc(labels)}</h2>", f"<p class=\"lead\">{esc(t['lead'])}</p>"]
+    hd = "h1" if lang == "pt" else "h2"
+    p = [f'<section id="{lang}" lang="{lang}">', f"<{hd}>{esc(t['h1'])} — {esc(labels)}</{hd}>", f"<p class=\"lead\">{esc(t['lead'])}</p>"]
     if status:
         p.append(f'<p class="status">{esc(t[status])}</p>')
     if not st.get("available"):
@@ -407,18 +408,25 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     return "".join(p)
 
 
-def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: str = "pt", desc: str = "") -> str:
+def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: str = "pt", desc: str = "", jsonld: dict | None = None) -> str:
     t = T["pt"]
+    d_ = desc or T['en']['lead']
+    ld = ('\n<script type="application/ld+json">' + json.dumps(jsonld, ensure_ascii=False).replace("</", "<\\/") + "</script>") if jsonld else ""
     return f"""<!DOCTYPE html>
 <html lang="{lang_first}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title>
-<meta name="description" content="{esc(desc or T['en']['lead'])}">
+<meta name="description" content="{esc(d_)}">
+<meta property="og:title" content="{esc(title)}">
+<meta property="og:description" content="{esc(d_)}">
+<meta property="og:url" content="{esc(canonical)}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{esc(SITE_NAME)}">
 <link rel="canonical" href="{esc(canonical)}">
 <link rel="alternate" type="application/rss+xml" title="{esc(SITE_NAME)}" href="{SITE_BASE}/feed.xml">
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/style.css">{ld}
 </head>
 <body>
 <header class="top"><a href="/" class="brand">{esc(SITE_NAME)}</a>
@@ -541,12 +549,24 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     if st.get("available"):
         desc = (f"Luz {day:%d.%m}: mais barato {window_text(hours, st['cheap_window'])} ({fmt(st['cheap_window']['avg'])} €/MWh), "
                 f"mais caro {window_text(hours, st['dear_window'])} ({fmt(st['dear_window']['avg'])} €/MWh), média {fmt(st['avg'])} €/MWh.")
-    html_text = page(title, body, built, canonical, desc=desc)
+    site_ld = {"@context": "https://schema.org", "@type": "WebSite", "name": SITE_NAME, "url": SITE_BASE + "/",
+               "inLanguage": ["pt", "en"], "description": T["en"]["lead"],
+               "publisher": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"}}
+    day_ld = {"@context": "https://schema.org", "@type": "Dataset", "name": f"{SITE_NAME} — OMIE Portugal day-ahead price {day.isoformat()}",
+              "description": desc or T["en"]["lead"], "temporalCoverage": day.isoformat(), "dateModified": built.date().isoformat(),
+              "url": f"{SITE_BASE}/d/{day.isoformat()}/", "license": "https://creativecommons.org/licenses/by/4.0/",
+              "inLanguage": ["pt", "en"],
+              "creator": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"},
+              "publisher": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"},
+              "isBasedOn": {"@type": "Dataset", "name": "OMIE marginalpdbcpt day-ahead market results", "url": "https://www.omie.es/"},
+              "distribution": {"@type": "DataDownload", "encodingFormat": "application/json",
+                               "contentUrl": f"{SITE_BASE}/d/{day.isoformat()}/index.json"}}
+    html_text = page(title, body, built, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld)
     data = day_json(day, hours, st, cmp, tariff, built, src)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.html", html_text)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.json", json.dumps(data, ensure_ascii=False, indent=1))
     if index_page:
-        write(PUBLIC_DIR / "index.html", html_text)
+        write(PUBLIC_DIR / "index.html", page(title, body, built, SITE_BASE + "/", desc=desc, jsonld=site_ld))
     return data
 
 
