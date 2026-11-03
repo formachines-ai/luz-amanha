@@ -346,7 +346,7 @@ T = {
         "avg": "Média do dia", "avg_part": "Média das horas disponíveis",
         "incomplete": "Dados para {n} de {m} horas; falta {missing} (a OMIE publica amanhã). Janelas e média usam só as horas conhecidas.",
         "tz": "Horas de Portugal continental (Europe/Lisbon).",
-        "cmp_basis": "Comparações: média dos ficheiros OMIE de cada dia (hora de Madrid), não desta média.",
+        "cmp_basis": "Comparações: médias por hora de Lisboa (horas disponíveis) de cada dia, a mesma base da média acima.",
         "vs_yday": "vs. ontem", "vs_week": "vs. média dos últimos 7 dias",
         "hour23": "A hora 23:00 só fica disponível no dia seguinte (o OMIE publica em hora de Espanha).",
         "fact": "€/MWh é o preço marginal do mercado diário OMIE para Portugal — um facto, sem impostos, redes nem margem do comercializador.",
@@ -373,7 +373,7 @@ T = {
         "avg": "Day average", "avg_part": "Average of the available hours",
         "incomplete": "Data for {n} of {m} hours; {missing} is missing (OMIE publishes it tomorrow). Windows and average use only the known hours.",
         "tz": "Hours in mainland Portugal time (Europe/Lisbon).",
-        "cmp_basis": "Comparisons: average of each day's OMIE file (Madrid time), not of this average.",
+        "cmp_basis": "Comparisons: averages of Lisbon hours (available hours) for each day, the same basis as the average above.",
         "vs_yday": "vs. yesterday", "vs_week": "vs. last 7 days average",
         "hour23": "The 23:00 hour becomes available the next day (OMIE publishes in Spanish time).",
         "fact": "€/MWh is the OMIE day-ahead marginal price for Portugal — a fact, before taxes, grid fees and supplier margin.",
@@ -594,15 +594,20 @@ def static_pages(built: dt.datetime) -> None:
 
 # ----------------------------------------------------------------------------- BUILD
 def comparison(day: dt.date, files: dict[dt.date, dict]) -> dict:
-    """Average of day vs. yesterday and vs. the mean of the previous 7 days (based on the OMIE file days, PT column)."""
+    """Average of day vs. yesterday and vs. the mean of the previous 7 days, all on Lisbon-hour averages (available hours)."""
+    def lisbon_avg(d: dt.date) -> float | None:
+        if d not in files and d + dt.timedelta(days=1) not in files:
+            return None
+        return stats(lisbon_hours(d, files)).get("avg")
     def file_avg(d: dt.date) -> float | None:
         f = files.get(d)
         return round(sum(p for _, p, _ in f["periods"]) / len(f["periods"]), 2) if f else None
-    today_avg = file_avg(day)
-    y_avg = file_avg(day - dt.timedelta(days=1))
-    week = [a for a in (file_avg(day - dt.timedelta(days=i)) for i in range(1, HISTORY_DAYS + 1)) if a is not None]
-    out = {"day_avg_file": today_avg, "yesterday_avg": y_avg, "week_avg": round(sum(week) / len(week), 2) if week else None,
-           "week_days": len(week), "vs_yesterday": None, "vs_week": None}
+    today_avg = lisbon_avg(day)
+    y_avg = lisbon_avg(day - dt.timedelta(days=1))
+    week = [a for a in (lisbon_avg(day - dt.timedelta(days=i)) for i in range(1, HISTORY_DAYS + 1)) if a is not None]
+    out = {"day_avg_file": file_avg(day), "yesterday_avg": y_avg, "week_avg": round(sum(week) / len(week), 2) if week else None,
+           "week_days": len(week), "vs_yesterday": None, "vs_week": None,
+           "basis": "Lisbon-hour averages over available hours (yesterday_avg, week_avg, vs_*); day_avg_file = OMIE file day, Madrid time"}
     if today_avg is not None and y_avg:
         out["vs_yesterday"] = round((today_avg / y_avg - 1) * 100, 1)
     if today_avg is not None and out["week_avg"]:
