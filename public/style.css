@@ -47,3 +47,5 @@ section#en { border-top: 2px solid var(--line); margin-top: 28px; }
   table.hours th, table.hours td { padding: 3px 5px; }
   ul.archive { columns: 1; }
 }
+p.feedback { font-size: 24px; color: var(--muted); margin: 1.2em 0 0.4em; }
+p.feedback a { color: var(--muted); }
