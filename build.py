@@ -20,6 +20,7 @@ import logging
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -36,6 +37,7 @@ SITE_BASE = f"https://{SITE_HOST}"
 SITE_NAME = "Luz Amanhã"
 RESPONSIBLE = "Dmitriy, bymachines.ai"
 LEGAL_UPSTREAM = "https://formachines.ai/legal/"
+REPO_URL = "https://github.com/formachines-ai/luz-amanha"
 TELEGRAM_URL = "https://t.me/luz_amanha"   # real channel (owner created 2026-11-02)
 
 # OMIE day-ahead marginal price files. Verified 2026-11-02 (see README "Data source"):
@@ -379,6 +381,31 @@ T = {
 }
 
 
+FEEDBACK = {
+    "pt": {"q": "Foi útil?", "up": "útil", "down": "não útil", "report": "Reportar um erro", "issue": "Erro na página"},
+    "en": {"q": "Was this useful?", "up": "useful", "down": "not useful", "report": "Report an error", "issue": "Error on page"},
+}
+
+
+def feedback_links(lang: str, day: dt.date) -> str:
+    f = FEEDBACK[lang]
+    title = urllib.parse.quote(f"{f['issue']} {day.isoformat()}: ")
+    body = urllib.parse.quote(f"Page: {SITE_BASE}/d/{day.isoformat()}/\n\n")
+    return (f'<p class="feedback">{esc(f["q"])} <a href="/go/vote/{day.isoformat()}/up/" rel="nofollow">{esc(f["up"])}</a> · '
+            f'<a href="/go/vote/{day.isoformat()}/down/" rel="nofollow">{esc(f["down"])}</a> · '
+            f'<a href="{REPO_URL}/issues/new?title={title}&amp;body={body}" rel="nofollow noopener">{esc(f["report"])}</a></p>')
+
+
+def vote_pages(day: dt.date, built: dt.datetime) -> None:
+    back = f"/d/{day.isoformat()}/"
+    for direction in ("up", "down"):
+        body = (f'<section lang="pt"><h1>Obrigado</h1><p>Voto registado. <a href="{back}">Voltar à página de {day:%d.%m.%Y}</a></p>'
+                f'<p lang="en">Thanks. <a href="{back}">Back to {day.isoformat()}</a></p></section>')
+        html_text = page("Voto — " + SITE_NAME, body, built, SITE_BASE + f"/go/vote/{day.isoformat()}/{direction}/").replace(
+            '<meta name="viewport"', f'<meta http-equiv="refresh" content="0;url={back}">\n<meta name="robots" content="noindex">\n<meta name="viewport"', 1)
+        write(PUBLIC_DIR / "go" / "vote" / day.isoformat() / direction / "index.html", html_text)
+
+
 def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict, status: str | None, neutral: bool = False) -> str:
     t = T[lang]
     weekday_pt = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")[day.weekday()]
@@ -393,7 +420,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     if status and not today_mode:
         p.append(f'<p class="status">{esc(t[status])}</p>')
     if not st.get("available"):
-        p.append(f"<p>{esc(t['nodata_all'])}</p></section>")
+        p.append(f"<p>{esc(t['nodata_all'])}</p>" + feedback_links(lang, day) + "</section>")
         return "".join(p)
     ch = [i for i in st["cheapest_hours"]]
     p.append('<dl class="kpi">')
@@ -417,6 +444,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     else:
         p.append(f'<p class="note">{esc(t["est_off"])}</p>')
     p.append(hours_table(hours, st, tariff, lang))
+    p.append(feedback_links(lang, day))
     p.append("</section>")
     return "".join(p)
 
@@ -580,6 +608,7 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     html_text = page(title, day_body, built, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld)
     data = day_json(day, hours, st, cmp, tariff, built, src)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.html", html_text)
+    vote_pages(day, built)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.json", json.dumps(data, ensure_ascii=False, indent=1))
     if index_page:
         write(PUBLIC_DIR / "index.html", page(title, body, built, SITE_BASE + "/", desc=desc, jsonld=site_ld))
