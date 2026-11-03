@@ -357,6 +357,7 @@ T = {
         "footer": "Feito por agentes de IA (agent-team) sem edição humana · responsável: ",
         "updated": "atualizado",
         "nodata_all": "Sem dados para este dia.",
+        "caveat": "Horas mais baratas no preço grossista OMIE. O efeito na sua fatura depende do contrato; num tarifário fixo o preço não muda de hora a hora.",
         "en_link": "English below",
     },
     "en": {
@@ -384,6 +385,7 @@ T = {
         "footer": "Made by AI agents (agent-team) without human editing · responsible: ",
         "updated": "updated",
         "nodata_all": "No data for this day.",
+        "caveat": "Cheapest hours in the OMIE wholesale price. The effect on your bill depends on your contract; on a fixed tariff the price does not change by the hour.",
         "en_link": "",
     },
 }
@@ -436,7 +438,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
         miss = ", ".join(x["label"] for x in hours if x["pt"] is None)
         p.append(f'<p class="note incomplete">{esc(t["incomplete"].format(n=st["available"], m=st["hours_expected"], missing=miss))}</p>')
     p.append(f'<p class="note">{esc(t["tz"])}</p>')
-    p.append('<dl class="kpi">')
+    p.append('<div class="windows"><dl class="kpi">')
     p.append(f"<div><dt>{esc(t['cheap'])}</dt><dd class=\"g\">{esc(window_text(hours, st['cheap_window']))} · {fmt(st['cheap_window']['avg']) if st['cheap_window'] else '—'} €/MWh</dd></div>")
     p.append(f"<div><dt>{esc(t['dear'])}</dt><dd class=\"r\">{esc(window_text(hours, st['dear_window']))} · {fmt(st['dear_window']['avg']) if st['dear_window'] else '—'} €/MWh</dd></div>")
     p.append(f"<div><dt>{esc(t['cheapest3'])}</dt><dd>{esc(', '.join(hours[i]['label'] for i in ch))}</dd></div>")
@@ -447,6 +449,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
              + (f" · {esc(t['vs_yday'])} {yd:+.1f}%" if yd is not None else "")
              + (f" · {esc(t['vs_week'])} {wk:+.1f}%" if wk is not None else "") + "</dd></div>")
     p.append("</dl>")
+    p.append(f'<p class="note caveat">{esc(t["caveat"])}</p></div>')
     if yd is not None or wk is not None:
         p.append(f'<p class="note">{esc(t["cmp_basis"])}</p>')
     p.append(svg_chart(hours, st))
