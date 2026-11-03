@@ -333,6 +333,8 @@ T = {
         "title": "Luz amanhã — preço da eletricidade por hora (OMIE Portugal)",
         "h1": "Luz amanhã",
         "h1_day": "Preço da luz em Portugal",
+        "h1_today": "Luz hoje",
+        "title_today": "Luz hoje",
         "lead": "Preço grossista da eletricidade em Portugal por hora (mercado diário OMIE) e as horas mais baratas para ligar a máquina, o termoacumulador ou carregar o carro.",
         "for_day": "Preços para",
         "status_ok": "Dados de amanhã publicados pelo OMIE.",
@@ -355,6 +357,7 @@ T = {
         "title": "Luz amanhã — tomorrow's electricity price by hour (OMIE Portugal)",
         "h1": "Electricity price tomorrow — Portugal",
         "h1_day": "Electricity price in Portugal",
+        "h1_today": "Electricity price today",
         "lead": "Wholesale hourly electricity price for Portugal (OMIE day-ahead market) and the cheapest hours to run the washing machine, the water heater or charge the car.",
         "for_day": "Prices for",
         "status_ok": "Tomorrow's prices are published by OMIE.",
@@ -381,8 +384,13 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     weekday_pt = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")[day.weekday()]
     labels = {"pt": f"{day:%d.%m.%Y} ({weekday_pt})", "en": f"{day:%A %d %B %Y}"}[lang]
     hd = "h1" if lang == "pt" else "h2"
-    p = [f'<section id="{lang}" lang="{lang}">', f"<{hd}>{esc(t['h1_day'] if neutral else t['h1'])} — {esc(labels)}</{hd}>", f"<p class=\"lead\">{esc(t['lead'])}</p>"]
-    if status:
+    today_mode = status == "status_missing" and not neutral
+    h1 = t["h1_day"] if neutral else t["h1_today"] if today_mode else t["h1"]
+    p = [f'<section id="{lang}" lang="{lang}">', f"<{hd}>{esc(h1)} — {esc(labels)}</{hd}>"]
+    if status and today_mode:
+        p.append(f'<p class="status">{esc(t[status])}</p>')
+    p.append(f"<p class=\"lead\">{esc(t['lead'])}</p>")
+    if status and not today_mode:
         p.append(f'<p class="status">{esc(t[status])}</p>')
     if not st.get("available"):
         p.append(f"<p>{esc(t['nodata_all'])}</p></section>")
@@ -550,6 +558,8 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     body = day_section("pt", day, hours, st, cmp, tariff, status) + day_section("en", day, hours, st, cmp, tariff, status)
     day_body = day_section("pt", day, hours, st, cmp, tariff, status, True) + day_section("en", day, hours, st, cmp, tariff, status, True)
     title = f"{SITE_NAME} — {day:%d.%m.%Y}"
+    if status == "status_missing":  # index shows today: no 'amanhã' anywhere in title/og:title
+        title = f"{T['pt']['title_today']} — {day:%d.%m.%Y}"
     canonical = SITE_BASE + "/" if index_page else f"{SITE_BASE}/d/{day.isoformat()}/"
     desc = ""
     if st.get("available"):
