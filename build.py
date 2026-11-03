@@ -251,7 +251,10 @@ def esc(s: object) -> str:
 
 
 def fmt(v: float | None, nd: int = 2) -> str:
-    return "—" if v is None else f"{v:.{nd}f}"
+    if v is None:
+        return "—"
+    s = f"{v:.{nd}f}"
+    return s[1:] if s.startswith("-") and float(s) == 0 else s
 
 
 def window_text(hours: list[dict], w: dict | None) -> str:
@@ -329,6 +332,7 @@ T = {
     "pt": {
         "title": "Luz amanhã — preço da eletricidade por hora (OMIE Portugal)",
         "h1": "Luz amanhã",
+        "h1_day": "Preço da luz em Portugal",
         "lead": "Preço grossista da eletricidade em Portugal por hora (mercado diário OMIE) e as horas mais baratas para ligar a máquina, o termoacumulador ou carregar o carro.",
         "for_day": "Preços para",
         "status_ok": "Dados de amanhã publicados pelo OMIE.",
@@ -350,6 +354,7 @@ T = {
     "en": {
         "title": "Luz amanhã — tomorrow's electricity price by hour (OMIE Portugal)",
         "h1": "Electricity price tomorrow — Portugal",
+        "h1_day": "Electricity price in Portugal",
         "lead": "Wholesale hourly electricity price for Portugal (OMIE day-ahead market) and the cheapest hours to run the washing machine, the water heater or charge the car.",
         "for_day": "Prices for",
         "status_ok": "Tomorrow's prices are published by OMIE.",
@@ -371,12 +376,12 @@ T = {
 }
 
 
-def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict, status: str | None) -> str:
+def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict, status: str | None, neutral: bool = False) -> str:
     t = T[lang]
     weekday_pt = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")[day.weekday()]
     labels = {"pt": f"{day:%d.%m.%Y} ({weekday_pt})", "en": f"{day:%A %d %B %Y}"}[lang]
     hd = "h1" if lang == "pt" else "h2"
-    p = [f'<section id="{lang}" lang="{lang}">', f"<{hd}>{esc(t['h1'])} — {esc(labels)}</{hd}>", f"<p class=\"lead\">{esc(t['lead'])}</p>"]
+    p = [f'<section id="{lang}" lang="{lang}">', f"<{hd}>{esc(t['h1_day'] if neutral else t['h1'])} — {esc(labels)}</{hd}>", f"<p class=\"lead\">{esc(t['lead'])}</p>"]
     if status:
         p.append(f'<p class="status">{esc(t[status])}</p>')
     if not st.get("available"):
@@ -446,7 +451,7 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
         "date": day.isoformat(), "timezone": "Europe/Lisbon", "unit": "EUR/MWh", "market": "OMIE day-ahead, Portugal",
         "source_file": source_file, "built_utc": built.isoformat(timespec="seconds"),
         "hours": [{"hour": x["label"], "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_es_eur_mwh": x["es"],
-                   "energy_eur_kwh": None if x["pt"] is None else round(x["pt"] / 1000, 4),
+                   "energy_eur_kwh": None if x["pt"] is None else round(x["pt"] / 1000, 4) + 0.0,
                    **({"estimate_eur_kwh": None if x["pt"] is None else estimate_kwh(x["pt"], tariff)} if tariff.get("enabled") else {})}
                   for x in hours],
         "stats": {k: v for k, v in st.items()},
@@ -543,6 +548,7 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     cmp = comparison(day, files)
     src = omie_filename(day) if day in files else None
     body = day_section("pt", day, hours, st, cmp, tariff, status) + day_section("en", day, hours, st, cmp, tariff, status)
+    day_body = day_section("pt", day, hours, st, cmp, tariff, status, True) + day_section("en", day, hours, st, cmp, tariff, status, True)
     title = f"{SITE_NAME} — {day:%d.%m.%Y}"
     canonical = SITE_BASE + "/" if index_page else f"{SITE_BASE}/d/{day.isoformat()}/"
     desc = ""
@@ -561,7 +567,7 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
               "isBasedOn": {"@type": "Dataset", "name": "OMIE marginalpdbcpt day-ahead market results", "url": "https://www.omie.es/"},
               "distribution": {"@type": "DataDownload", "encodingFormat": "application/json",
                                "contentUrl": f"{SITE_BASE}/d/{day.isoformat()}/index.json"}}
-    html_text = page(title, body, built, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld)
+    html_text = page(title, day_body, built, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld)
     data = day_json(day, hours, st, cmp, tariff, built, src)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.html", html_text)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.json", json.dumps(data, ensure_ascii=False, indent=1))
