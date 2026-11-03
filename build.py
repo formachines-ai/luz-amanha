@@ -467,6 +467,7 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 <meta property="og:site_name" content="{esc(SITE_NAME)}">
 <link rel="canonical" href="{esc(canonical)}">
 <link rel="alternate" type="application/rss+xml" title="{esc(SITE_NAME)}" href="{SITE_BASE}/feed.xml">
+<link rel="icon" type="image/svg+xml" href="/brand/avatar.svg">
 <link rel="stylesheet" href="/style.css">{ld}
 </head>
 <body>
@@ -522,6 +523,22 @@ def static_pages(built: dt.datetime) -> None:
 <p><strong>License:</strong> site texts, charts and JSON — CC BY 4.0. Source data belongs to OMIE.</p>
 <p>Full terms, contact and data policy: <a href="{LEGAL_UPSTREAM}">{LEGAL_UPSTREAM}</a>.</p></section>"""
     write(PUBLIC_DIR / "legal" / "index.html", page("Legal — " + SITE_NAME, legal, built, SITE_BASE + "/legal/"))
+
+    brand = f"""<section lang="pt"><h1>Marca / Brand</h1>
+<p>Avatar do site e dos canais. Dois desenhos de geometria simples, legíveis num círculo de 48 px, sem texto. Escolhido: <strong>A</strong>.</p>
+<p lang="en">Avatar for the site and its channels. Two simple-geometry designs that read in a 48 px circle, no text. Chosen: <strong>A</strong>.</p>
+<h2>A — sunrise (escolhido / chosen)</h2>
+<p><img src="/brand/avatar-a.svg" width="128" height="128" alt="Avatar A: sun rising over the horizon"> <img src="/brand/avatar-a.svg" width="48" height="48" alt="" style="border-radius:50%"></p>
+<h2>B — three price bars</h2>
+<p><img src="/brand/avatar-b.svg" width="128" height="128" alt="Avatar B: three bars, green low, red high"> <img src="/brand/avatar-b.svg" width="48" height="48" alt="" style="border-radius:50%"></p>
+<h2>Porquê A / Why A</h2>
+<p>«Luz amanhã» = o sol a nascer; forma única e contrastada, aguenta o recorte em círculo. B lembra o gráfico, mas as três barras viram ruído a 48 px e verde/vermelho sozinhos são fracos para daltónicos.</p>
+<p lang="en">"Luz amanhã" = tomorrow's light: a sunrise is one bold shape that survives the circular crop. B echoes the chart, but three bars turn to noise at 48 px and green/red alone is weak for colour-blind users.</p>
+<h2>Ficheiros / Files</h2>
+<ul><li><a href="/brand/avatar.svg">/brand/avatar.svg</a> (512×512, escolhido / chosen)</li><li><a href="/brand/avatar-a.svg">avatar-a.svg</a> · <a href="/brand/avatar-b.svg">avatar-b.svg</a></li></ul>
+<h2>Canais / Channels</h2>
+<ul><li>Telegram <a href="{esc(TELEGRAM_URL)}">@luz_amanha</a> — a carregar pelo responsável / to be uploaded by the owner</li><li>Favicon — <a href="/">luz.bymachines.ai</a> (já ativo / active)</li></ul></section>"""
+    write(PUBLIC_DIR / "brand" / "index.html", page("Brand — " + SITE_NAME, brand, built, SITE_BASE + "/brand/"))
 
     tg = f"""<section lang="pt"><h1>Telegram</h1>
 <p>A redirecionar para o canal… Se não abrir: <a href="{esc(TELEGRAM_URL)}">{esc(TELEGRAM_URL)}</a></p>
@@ -641,7 +658,7 @@ def feed(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) 
            f"<description>{esc(T['en']['lead'])} Made by AI agents; responsible: {esc(RESPONSIBLE)}.</description><language>pt</language>"
            f"<lastBuildDate>{built:%a, %d %b %Y %H:%M:%S} +0000</lastBuildDate>{''.join(items)}</channel></rss>")
     write(PUBLIC_DIR / "feed.xml", xml)
-    urls = [SITE_BASE + "/", SITE_BASE + "/d/", SITE_BASE + "/legal/"] + [f"{SITE_BASE}/d/{d.isoformat()}/" for d in sorted(days)]
+    urls = [SITE_BASE + "/", SITE_BASE + "/d/", SITE_BASE + "/legal/", SITE_BASE + "/brand/"] + [f"{SITE_BASE}/d/{d.isoformat()}/" for d in sorted(days)]
     write(PUBLIC_DIR / "sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
           + "".join(f"<url><loc>{u}</loc></url>" for u in urls) + "</urlset>")
 
