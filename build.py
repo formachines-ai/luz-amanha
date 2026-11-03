@@ -206,7 +206,7 @@ def stats(hours: list[dict]) -> dict:
     """Averages and windows over the hours that have a price. Windows are on consecutive available hours."""
     vals = [(i, h["pt"]) for i, h in enumerate(hours) if h["pt"] is not None]
     if not vals:
-        return {"available": 0}
+        return {"available": 0, "hours_expected": len(hours), "complete": False}
     prices = [v for _, v in vals]
     avg = round(sum(prices) / len(prices), 2)
     cheapest = sorted(vals, key=lambda x: (x[1], x[0]))[:WINDOW_HOURS]
@@ -224,7 +224,7 @@ def stats(hours: list[dict]) -> dict:
         return best
 
     return {
-        "available": len(vals), "avg": avg, "min": min(prices), "max": max(prices),
+        "available": len(vals), "hours_expected": len(hours), "complete": len(vals) >= len(hours), "avg": avg, "min": min(prices), "max": max(prices),
         "cheap_window": best_window(+1), "dear_window": best_window(-1),
         "cheapest_hours": sorted(i for i, _ in cheapest), "dearest_hours": sorted(i for i, _ in dearest),
     }
@@ -343,10 +343,14 @@ T = {
         "status_missing": f"O OMIE ainda não publicou os preços de amanhã (costuma publicar por volta das {PUBLISH_HINT_LOCAL}). Próxima tentativa às {RETRY_HINT_UTC} UTC. Abaixo: os preços de hoje.",
         "cheap": "Mais barato (3 horas seguidas)", "dear": "Mais caro (3 horas seguidas)",
         "cheapest3": "3 horas mais baratas", "dearest3": "3 horas mais caras",
-        "avg": "Média do dia", "vs_yday": "vs. ontem", "vs_week": "vs. média dos últimos 7 dias",
+        "avg": "Média do dia", "avg_part": "Média das horas disponíveis",
+        "incomplete": "Dados para {n} de {m} horas; falta {missing} (a OMIE publica amanhã). Janelas e média usam só as horas conhecidas.",
+        "tz": "Horas de Portugal continental (Europe/Lisbon).",
+        "cmp_basis": "Comparações: média dos ficheiros OMIE de cada dia (hora de Madrid), não desta média.",
+        "vs_yday": "vs. ontem", "vs_week": "vs. média dos últimos 7 dias",
         "hour23": "A hora 23:00 só fica disponível no dia seguinte (o OMIE publica em hora de Espanha).",
         "fact": "€/MWh é o preço marginal do mercado diário OMIE para Portugal — um facto, sem impostos, redes nem margem do comercializador.",
-        "est_off": "A estimativa em €/kWh com parcelas reguladas (ERSE) aparece quando o responsável as fixar com data em config/tariff.json. Até lá mostramos só o preço OMIE.",
+        "est_off": "Preço grossista OMIE, sem impostos, redes nem margem; a sua fatura depende do contrato.",
         "est_on": "Estimativa, não é a sua fatura:",
         "archive": "Arquivo por dia", "json": "JSON", "feed": "Feed",
         "tg": "Receber todos os dias no Telegram",
@@ -366,10 +370,14 @@ T = {
         "status_missing": f"OMIE has not published tomorrow's prices yet (usually around {PUBLISH_HINT_LOCAL} local time). Next attempt at {RETRY_HINT_UTC} UTC. Below: today's prices.",
         "cheap": "Cheapest (3 consecutive hours)", "dear": "Most expensive (3 consecutive hours)",
         "cheapest3": "3 cheapest hours", "dearest3": "3 most expensive hours",
-        "avg": "Day average", "vs_yday": "vs. yesterday", "vs_week": "vs. last 7 days average",
+        "avg": "Day average", "avg_part": "Average of the available hours",
+        "incomplete": "Data for {n} of {m} hours; {missing} is missing (OMIE publishes it tomorrow). Windows and average use only the known hours.",
+        "tz": "Hours in mainland Portugal time (Europe/Lisbon).",
+        "cmp_basis": "Comparisons: average of each day's OMIE file (Madrid time), not of this average.",
+        "vs_yday": "vs. yesterday", "vs_week": "vs. last 7 days average",
         "hour23": "The 23:00 hour becomes available the next day (OMIE publishes in Spanish time).",
         "fact": "€/MWh is the OMIE day-ahead marginal price for Portugal — a fact, before taxes, grid fees and supplier margin.",
-        "est_off": "A €/kWh estimate with regulated components (ERSE) appears once the responsible person sets them with a date in config/tariff.json. Until then only the OMIE price is shown.",
+        "est_off": "OMIE wholesale price, without taxes, networks or margin; your bill depends on your contract.",
         "est_on": "Estimate, not your bill:",
         "archive": "Archive by day", "json": "JSON", "feed": "Feed",
         "tg": "Get it daily on Telegram",
@@ -423,6 +431,11 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
         p.append(f"<p>{esc(t['nodata_all'])}</p>" + feedback_links(lang, day) + "</section>")
         return "".join(p)
     ch = [i for i in st["cheapest_hours"]]
+    partial = not st.get("complete", True)
+    if partial:
+        miss = ", ".join(x["label"] for x in hours if x["pt"] is None)
+        p.append(f'<p class="note incomplete">{esc(t["incomplete"].format(n=st["available"], m=st["hours_expected"], missing=miss))}</p>')
+    p.append(f'<p class="note">{esc(t["tz"])}</p>')
     p.append('<dl class="kpi">')
     p.append(f"<div><dt>{esc(t['cheap'])}</dt><dd class=\"g\">{esc(window_text(hours, st['cheap_window']))} · {fmt(st['cheap_window']['avg']) if st['cheap_window'] else '—'} €/MWh</dd></div>")
     p.append(f"<div><dt>{esc(t['dear'])}</dt><dd class=\"r\">{esc(window_text(hours, st['dear_window']))} · {fmt(st['dear_window']['avg']) if st['dear_window'] else '—'} €/MWh</dd></div>")
@@ -430,10 +443,12 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     p.append(f"<div><dt>{esc(t['dearest3'])}</dt><dd>{esc(', '.join(hours[i]['label'] for i in st['dearest_hours']))}</dd></div>")
     yd = cmp.get("vs_yesterday")
     wk = cmp.get("vs_week")
-    p.append(f"<div><dt>{esc(t['avg'])}</dt><dd>{fmt(st['avg'])} €/MWh"
+    p.append(f"<div><dt>{esc(t['avg_part'] if partial else t['avg'])}</dt><dd>{fmt(st['avg'])} €/MWh"
              + (f" · {esc(t['vs_yday'])} {yd:+.1f}%" if yd is not None else "")
              + (f" · {esc(t['vs_week'])} {wk:+.1f}%" if wk is not None else "") + "</dd></div>")
     p.append("</dl>")
+    if yd is not None or wk is not None:
+        p.append(f'<p class="note">{esc(t["cmp_basis"])}</p>')
     p.append(svg_chart(hours, st))
     if any(x["pt"] is None for x in hours):
         p.append(f'<p class="note">{esc(t["hour23"])}</p>')
