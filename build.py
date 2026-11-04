@@ -495,8 +495,10 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     return "".join(p)
 
 
-def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: str = "pt", desc: str = "", jsonld: dict | None = None) -> str:
+def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: str = "pt", desc: str = "", jsonld: dict | None = None, og_title: str = "", og_desc: str = "") -> str:
     t = T["pt"]
+    og_t = og_title or title
+    og_d = og_desc or desc or T['en']['lead']
     d_ = desc or T['en']['lead']
     ld = ('\n<script type="application/ld+json">' + json.dumps(jsonld, ensure_ascii=False).replace("</", "<\\/") + "</script>") if jsonld else ""
     return f"""<!DOCTYPE html>
@@ -506,10 +508,13 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(d_)}">
-<meta property="og:title" content="{esc(title)}">
-<meta property="og:description" content="{esc(d_)}">
+<meta property="og:title" content="{esc(og_t)}">
+<meta property="og:description" content="{esc(og_d)}">
 <meta property="og:url" content="{esc(canonical)}">
 <meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{esc(og_t)}">
+<meta name="twitter:description" content="{esc(og_d)}">
 <meta property="og:site_name" content="{esc(SITE_NAME)}">
 <link rel="canonical" href="{esc(canonical)}">
 <link rel="alternate" type="application/rss+xml" title="{esc(SITE_NAME)}" href="{SITE_BASE}/feed.xml">
@@ -662,6 +667,14 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     if st.get("available"):
         desc = (f"Luz {day:%d.%m}: mais barato {window_text(hours, st['cheap_window'])} ({fmt(st['cheap_window']['avg'])} €/MWh), "
                 f"mais caro {window_text(hours, st['dear_window'])} ({fmt(st['dear_window']['avg'])} €/MWh), média {fmt(st['avg'])} €/MWh.")
+    og_title = og_desc = ""
+    if st.get("available") and st.get("cheap_window"):
+        cw = st["cheap_window"]
+        og_title = f"Luz {day:%d.%m} — preço OMIE por hora (Portugal)"
+        n = f" (dados para {st['available']} de {st['hours_expected']} horas)" if not st["complete"] else ""
+        n_en = f" (data for {st['available']} of {st['hours_expected']} hours)" if not st["complete"] else ""
+        og_desc = (f"Janela de 3 horas mais barata: {window_text(hours, cw)}, média {fmt(cw['avg'])} €/MWh (OMIE grossista){n}. "
+                   f"EN: cheapest 3-hour window {window_text(hours, cw)}, average {fmt(cw['avg'])} €/MWh (OMIE wholesale){n_en}.")
     site_ld = {"@context": "https://schema.org", "@type": "WebSite", "name": SITE_NAME, "url": SITE_BASE + "/",
                "inLanguage": ["pt", "en"], "description": T["en"]["lead"],
                "publisher": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"}}
@@ -674,13 +687,13 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
               "isBasedOn": {"@type": "Dataset", "name": "OMIE marginalpdbcpt day-ahead market results", "url": "https://www.omie.es/"},
               "distribution": {"@type": "DataDownload", "encodingFormat": "application/json",
                                "contentUrl": f"{SITE_BASE}/d/{day.isoformat()}/index.json"}}
-    html_text = page(title, day_body, built, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld)
+    html_text = page(title, day_body, built, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld, og_title=og_title, og_desc=og_desc)
     data = day_json(day, hours, st, cmp, tariff, built, src)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.html", html_text)
     vote_pages(day, built)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.json", json.dumps(data, ensure_ascii=False, indent=1))
     if index_page:
-        write(PUBLIC_DIR / "index.html", page(title, body, built, SITE_BASE + "/", desc=desc, jsonld=site_ld))
+        write(PUBLIC_DIR / "index.html", page(title, body, built, SITE_BASE + "/", desc=desc, jsonld=site_ld, og_title=og_title, og_desc=og_desc))
     return data
 
 
