@@ -312,8 +312,8 @@ HOUR23_ROW_NOTE = {"pt": "publicado amanhã pela OMIE", "en": "published by OMIE
 
 def hours_table(hours: list[dict], st: dict, tariff: dict, lang: str) -> str:
     cw, dw = st.get("cheap_window"), st.get("dear_window")
-    head = {"pt": ("Hora", "€/MWh (OMIE PT)", "€/kWh energia", "Estimativa €/kWh"),
-            "en": ("Hour", "€/MWh (OMIE PT)", "€/kWh energy", "Estimate €/kWh")}[lang]
+    head = {"pt": ("Hora", "€/MWh (OMIE PT)", "€/kWh grossista (energia)", "Estimativa €/kWh"),
+            "en": ("Hour", "€/MWh (OMIE PT)", "€/kWh wholesale (energy)", "Estimate €/kWh")}[lang]
     cols = head[:3] + ((head[3],) if tariff.get("enabled") else ())
     out = ["<table class=\"hours\"><thead><tr>" + "".join(f"<th>{esc(c)}</th>" for c in cols) + "</tr></thead><tbody>"]
     for i, x in enumerate(hours):
@@ -352,12 +352,15 @@ T = {
         "fact": "€/MWh é o preço marginal do mercado diário OMIE para Portugal — um facto, sem impostos, redes nem margem do comercializador.",
         "est_off": "Preço grossista OMIE, sem impostos, redes nem margem; a sua fatura depende do contrato.",
         "est_on": "Estimativa, não é a sua fatura:",
-        "archive": "Arquivo por dia", "json": "JSON", "feed": "Feed",
+        "archive": "Arquivo por dia", "json": "JSON", "feed": "RSS",
         "tg": "Receber todos os dias no Telegram",
         "footer": "Feito por agentes de IA (agent-team) sem edição humana · responsável: ",
         "updated": "atualizado",
         "nodata_all": "Sem dados para este dia.",
         "caveat": "Horas mais baratas no preço grossista OMIE. O efeito na sua fatura depende do contrato; num tarifário fixo o preço não muda de hora a hora.",
+        "tg_when": "Receba no Telegram todos os dias: por volta das 14:05 (hora de Lisboa) as horas mais baratas de amanhã, e às 07:00 as de hoje.",
+        "when_tomorrow": "Os preços de amanhã aparecem aqui normalmente entre as 13:15 e as 14:30 (hora de Lisboa).",
+        "rss_note": "RSS: /feed.xml dá um item por dia, com os preços.",
         "en_link": "English below",
     },
     "en": {
@@ -380,12 +383,15 @@ T = {
         "fact": "€/MWh is the OMIE day-ahead marginal price for Portugal — a fact, before taxes, grid fees and supplier margin.",
         "est_off": "OMIE wholesale price, without taxes, networks or margin; your bill depends on your contract.",
         "est_on": "Estimate, not your bill:",
-        "archive": "Archive by day", "json": "JSON", "feed": "Feed",
+        "archive": "Archive by day", "json": "JSON", "feed": "RSS",
         "tg": "Get it daily on Telegram",
         "footer": "Made by AI agents (agent-team) without human editing · responsible: ",
         "updated": "updated",
         "nodata_all": "No data for this day.",
         "caveat": "Cheapest hours in the OMIE wholesale price. The effect on your bill depends on your contract; on a fixed tariff the price does not change by the hour.",
+        "tg_when": "Get it on Telegram every day: around 14:05 (Lisbon time) the cheapest hours for tomorrow, and at 07:00 those for today.",
+        "when_tomorrow": "Tomorrow's prices usually appear here between 13:15 and 14:30 Lisbon time.",
+        "rss_note": "RSS: /feed.xml gives one item per day, with the prices.",
         "en_link": "",
     },
 }
@@ -429,6 +435,10 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     p.append(f"<p class=\"lead\">{esc(t['lead'])}</p>")
     if status and not today_mode:
         p.append(f'<p class="status">{esc(t[status])}</p>')
+    if not neutral:
+        p.append(f'<p class="note when">{esc(t["when_tomorrow"])}</p>')
+        p.append(f'<p class="note tg-when"><a href="/go/telegram/">{esc(t["tg_when"])}</a></p>')
+        p.append(f'<p class="note rss-note"><a href="/feed.xml">{esc(t["rss_note"])}</a></p>')
     if not st.get("available"):
         p.append(f"<p>{esc(t['nodata_all'])}</p>" + feedback_links(lang, day) + "</section>")
         return "".join(p)
