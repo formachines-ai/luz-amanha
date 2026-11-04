@@ -656,10 +656,31 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     return data
 
 
-def archive_index(days: list[dt.date], built: dt.datetime) -> None:
-    items = "".join(f'<li><a href="/d/{d.isoformat()}/">{d:%d.%m.%Y}</a> · <a href="/d/{d.isoformat()}/index.json">json</a></li>'
-                    for d in sorted(days, reverse=True))
-    body = f'<section lang="pt"><h1>Arquivo por dia / Archive</h1><ul class="archive">{items}</ul></section>'
+def archive_index(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) -> None:
+    """One summary row per day; every value is read from the same dict that is written to /d/YYYY-MM-DD/index.json."""
+    rows = []
+    for d in sorted(days, reverse=True):
+        iso = d.isoformat()
+        j = per_day.get(d) or {}
+        st = j.get("stats") or {}
+        cw = j.get("cheap_window")
+        if st.get("available"):
+            mh = next((h["hour"] for h in j["hours"] if h["price_pt_eur_mwh"] == st["min"]), "")
+            cheap = f'{esc(cw["hours"])} · {cw["avg_eur_mwh"]:.2f}' if cw else "–"
+            mn = f'{st["min"]:.2f} ({esc(mh)})'
+            known = "24/24" if st["complete"] and st["available"] == 24 else f'{st["available"]}/24'
+            if st["hours_expected"] != 24 and st["complete"]:
+                known = f'{st["available"]}/{st["hours_expected"]}'
+        else:
+            cheap = mn = known = "–"
+        rows.append(f'<tr><th scope="row"><a href="/d/{iso}/">{d:%d.%m.%Y}</a></th><td>{cheap}</td><td>{mn}</td><td>{known}</td>'
+                    f'<td><a href="/d/{iso}/index.json">json</a></td></tr>')
+    body = ('<section lang="pt"><h1>Arquivo por dia / Archive</h1>'
+            '<p>Preço grossista OMIE (Portugal), €/MWh. Janela barata = 3 horas seguidas com a média mais baixa; mínimo = hora mais barata; horas conhecidas = N/24. '
+            '<span lang="en">OMIE wholesale price, €/MWh. Cheap window = cheapest 3 consecutive hours (average); minimum = cheapest single hour; known hours = N/24.</span></p>'
+            '<table class="archive"><thead><tr><th scope="col">Dia / Day</th><th scope="col">Janela barata · média €/MWh<br><span lang="en">Cheap window · average €/MWh</span></th>'
+            '<th scope="col">Mínimo €/MWh (hora)<br><span lang="en">Minimum €/MWh (hour)</span></th><th scope="col">Horas / Hours</th><th scope="col">JSON</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table></section>')
     write(PUBLIC_DIR / "d" / "index.html", page("Arquivo — " + SITE_NAME, body, built, SITE_BASE + "/d/"))
 
 
@@ -726,7 +747,7 @@ def build(target: dt.date, offline: bool) -> int:
                                         "next_attempt_utc": RETRY_HINT_UTC, "built_utc": built.isoformat(timespec="seconds")}
     write(PUBLIC_DIR / "tomorrow.json", json.dumps(tomorrow, ensure_ascii=False, indent=1))
     write(PUBLIC_DIR / "today.json", json.dumps(per_day.get(today) or {"date": today.isoformat(), "available": False}, ensure_ascii=False, indent=1))
-    archive_index(list(files), built)
+    archive_index(list(files), per_day, built)
     feed(list(files), per_day, built)
     static_pages(built)
     write(PUBLIC_DIR / "build.json", json.dumps({

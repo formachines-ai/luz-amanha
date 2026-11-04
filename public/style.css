@@ -39,6 +39,8 @@ table.hours th:first-child, table.hours td:first-child { text-align: left; }
 table.hours tr.cheap td { background: var(--green-bg); }
 table.hours tr.dear td { background: var(--red-bg); }
 ul.archive { columns: 2; padding-left: 1.2em; }
+table.archive { border-collapse: collapse; font-size: 0.9rem; }
+table.archive th, table.archive td { padding: 3px 8px; text-align: left; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 footer { border-top: 1px solid var(--line); margin-top: 30px; padding-top: 10px; padding-bottom: 30px; color: var(--muted); font-size: 0.85rem; }
 section#en { border-top: 2px solid var(--line); margin-top: 28px; }
 @media (max-width: 420px) {
