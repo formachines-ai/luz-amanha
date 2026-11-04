@@ -503,7 +503,7 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 
 def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict, built: dt.datetime, source_file: str | None) -> dict:
     return {
-        "date": day.isoformat(), "timezone": "Europe/Lisbon", "unit": "EUR/MWh", "market": "OMIE day-ahead, Portugal",
+        "date": day.isoformat(), "available": bool(st.get("available")), "timezone": "Europe/Lisbon", "unit": "EUR/MWh", "market": "OMIE day-ahead, Portugal",
         "source_file": source_file, "built_utc": built.isoformat(timespec="seconds"),
         "hours": [{"hour": x["label"], "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_es_eur_mwh": x["es"],
                    "energy_eur_kwh": None if x["pt"] is None else round(x["pt"] / 1000, 4) + 0.0,

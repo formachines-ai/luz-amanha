@@ -20,6 +20,13 @@ today; 2 = neither available (index still written, says so).
 Schedule (server cron, UTC): `13:15` and `13:45` after OMIE publishes, plus `07:00` for the morning post. A build is
 idempotent; running it again only refreshes the "updated" timestamp.
 
+## Offline rebuild
+
+`python3 build.py --offline` (and any build whose download fails) reads `data/omie/<YYYY-MM-DD>.txt` first. If tomorrow's
+file is cached, `tomorrow.json`, `/` and `/d/<tomorrow>/` are built from it (`available: true`, same `hours[]` as the online
+build). `tomorrow.json` becomes `available: false` only when there is neither a cached nor a downloaded file for tomorrow;
+no price is ever carried over or invented. Test: `python3 -m unittest tests.test_offline_build`.
+
 ## What to commit
 
 - `build.py`, `config/`, `public/style.css`, `data/fixtures/`, this README — source.

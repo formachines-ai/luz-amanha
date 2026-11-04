@@ -1,10 +1,11 @@
 {
  "date": "2026-10-28",
+ "available": true,
  "timezone": "Europe/Lisbon",
  "unit": "EUR/MWh",
  "market": "OMIE day-ahead, Portugal",
  "source_file": "marginalpdbcpt_20261028.1",
- "built_utc": "2026-11-04T00:11:04+00:00",
+ "built_utc": "2026-11-04T01:12:22+00:00",
  "hours": [
   {
    "hour": "00:00",
