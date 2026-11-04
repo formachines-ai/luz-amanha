@@ -342,7 +342,7 @@ T = {
         "status_ok": "Dados de amanhã publicados pelo OMIE.",
         "status_missing": f"O OMIE ainda não publicou os preços de amanhã (costuma publicar por volta das {PUBLISH_HINT_LOCAL}). Próxima tentativa às {RETRY_HINT_UTC} UTC. Abaixo: os preços de hoje.",
         "cheap": "Mais barato (3 horas seguidas)", "dear": "Mais caro (3 horas seguidas)",
-        "cheapest3": "3 horas mais baratas", "dearest3": "3 horas mais caras",
+        "cheapest3": "3 horas mais baratas (horas isoladas, não necessariamente seguidas)", "dearest3": "3 horas mais caras",
         "avg": "Média do dia", "avg_part": "Média das horas disponíveis",
         "incomplete": "Dados para {n} de {m} horas; falta {missing} (a OMIE publica amanhã). Janelas e média usam só as horas conhecidas.",
         "tz": "Horas de Portugal continental (Europe/Lisbon).",
@@ -370,7 +370,7 @@ T = {
         "status_ok": "Tomorrow's prices are published by OMIE.",
         "status_missing": f"OMIE has not published tomorrow's prices yet (usually around {PUBLISH_HINT_LOCAL} local time). Next attempt at {RETRY_HINT_UTC} UTC. Below: today's prices.",
         "cheap": "Cheapest (3 consecutive hours)", "dear": "Most expensive (3 consecutive hours)",
-        "cheapest3": "3 cheapest hours", "dearest3": "3 most expensive hours",
+        "cheapest3": "3 cheapest single hours, not necessarily consecutive", "dearest3": "3 most expensive hours",
         "avg": "Day average", "avg_part": "Average of the available hours",
         "incomplete": "Data for {n} of {m} hours; {missing} is missing (OMIE publishes it tomorrow). Windows and average use only the known hours.",
         "tz": "Hours in mainland Portugal time (Europe/Lisbon).",
@@ -578,6 +578,7 @@ def static_pages(built: dt.datetime) -> None:
 ## Machine-readable
 - {SITE_BASE}/tomorrow.json — tomorrow (Lisbon calendar day), hours in Europe/Lisbon time, price_pt_eur_mwh per hour, cheap_window, dear_window, stats
 - {SITE_BASE}/today.json — today
+- Field definitions: cheapest_hours = the 3 cheapest single hours of the day (not necessarily consecutive); cheap_window and stats.cheap_window = the cheapest 3 consecutive hours (lowest average). The two can differ.
 - {SITE_BASE}/d/YYYY-MM-DD/index.json — archive, one file per day
 - {SITE_BASE}/feed.xml — RSS, one item per published day
 - {SITE_BASE}/build.json — when the site was last built and which OMIE files it used
