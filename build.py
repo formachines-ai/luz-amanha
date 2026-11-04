@@ -579,7 +579,7 @@ def static_pages(built: dt.datetime) -> None:
 - {SITE_BASE}/tomorrow.json — tomorrow (Lisbon calendar day), hours in Europe/Lisbon time, price_pt_eur_mwh per hour, cheap_window, dear_window, stats
 - {SITE_BASE}/today.json — today
 - Field definitions: cheapest_hours = the 3 cheapest single hours of the day (not necessarily consecutive); cheap_window and stats.cheap_window = the cheapest 3 consecutive hours (lowest average). The two can differ.
-- {SITE_BASE}/d/YYYY-MM-DD/index.json — archive, one file per day
+- {SITE_BASE}/d/YYYY-MM-DD/index.json — archive, one file per day. /d/YYYY-MM-DD/ and its index.json exist only after OMIE publishes that day (about 13:00 CET); until then tomorrow.json has available:false and the archive URL returns 404.
 - {SITE_BASE}/feed.xml — RSS, one item per published day
 - {SITE_BASE}/build.json — when the site was last built and which OMIE files it used
 
@@ -625,7 +625,7 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     cmp = comparison(day, files)
     src = omie_filename(day) if day in files else None
     body = day_section("pt", day, hours, st, cmp, tariff, status) + day_section("en", day, hours, st, cmp, tariff, status)
-    day_body = day_section("pt", day, hours, st, cmp, tariff, status, True) + day_section("en", day, hours, st, cmp, tariff, status, True)
+    day_body = day_section("pt", day, hours, st, cmp, tariff, None, True) + day_section("en", day, hours, st, cmp, tariff, None, True)
     title = f"{SITE_NAME} — {day:%d.%m.%Y}"
     if status == "status_missing":  # index shows today: no 'amanhã' anywhere in title/og:title
         title = f"{T['pt']['title_today']} — {day:%d.%m.%Y}"

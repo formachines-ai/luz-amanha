@@ -6,7 +6,7 @@
 - https://luz.bymachines.ai/tomorrow.json — tomorrow (Lisbon calendar day), hours in Europe/Lisbon time, price_pt_eur_mwh per hour, cheap_window, dear_window, stats
 - https://luz.bymachines.ai/today.json — today
 - Field definitions: cheapest_hours = the 3 cheapest single hours of the day (not necessarily consecutive); cheap_window and stats.cheap_window = the cheapest 3 consecutive hours (lowest average). The two can differ.
-- https://luz.bymachines.ai/d/YYYY-MM-DD/index.json — archive, one file per day
+- https://luz.bymachines.ai/d/YYYY-MM-DD/index.json — archive, one file per day. /d/YYYY-MM-DD/ and its index.json exist only after OMIE publishes that day (about 13:00 CET); until then tomorrow.json has available:false and the archive URL returns 404.
 - https://luz.bymachines.ai/feed.xml — RSS, one item per published day
 - https://luz.bymachines.ai/build.json — when the site was last built and which OMIE files it used
 
