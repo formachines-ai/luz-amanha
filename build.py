@@ -439,6 +439,8 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     today_mode = status == "status_missing" and not neutral
     h1 = t["h1_day"] if neutral else t["h1_today"] if today_mode else t["h1"]
     p = [f'<section id="{lang}" lang="{lang}">', f"<{hd}>{esc(h1)} — {esc(labels)}</{hd}>"]
+    if lang == "pt":
+        p.append('<p class="note en-jump"><a href="#en" lang="en">English ↓</a></p>')
     if status and today_mode:
         p.append(f'<p class="status">{esc(t[status])}</p>')
     p.append(f"<p class=\"lead\">{esc(t['lead'])}</p>")
