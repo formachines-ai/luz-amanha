@@ -202,11 +202,17 @@ def lisbon_hours(day: dt.date, files: dict[dt.date, dict]) -> list[dict]:
     return out
 
 
+def night_stats(hours: list[dict]) -> dict:
+    """Mean of the Lisbon hours starting 00..05; None when none is known (never invented)."""
+    night = [h["pt"] for h in hours if h["label"][:2] in ("00", "01", "02", "03", "04", "05") and h["pt"] is not None]
+    return {"night_avg_00_06": round(sum(night) / len(night), 2) if night else None, "night_hours_00_06": len(night)}
+
+
 def stats(hours: list[dict]) -> dict:
     """Averages and windows over the hours that have a price. Windows are on consecutive available hours."""
     vals = [(i, h["pt"]) for i, h in enumerate(hours) if h["pt"] is not None]
     if not vals:
-        return {"available": 0, "hours_expected": len(hours), "complete": False}
+        return {"available": 0, "hours_expected": len(hours), "complete": False, **night_stats(hours)}
     prices = [v for _, v in vals]
     avg = round(sum(prices) / len(prices), 2)
     cheapest = sorted(vals, key=lambda x: (x[1], x[0]))[:WINDOW_HOURS]
@@ -227,6 +233,7 @@ def stats(hours: list[dict]) -> dict:
         "available": len(vals), "hours_expected": len(hours), "complete": len(vals) >= len(hours), "avg": avg, "min": min(prices), "max": max(prices),
         "cheap_window": best_window(+1), "dear_window": best_window(-1),
         "cheapest_hours": sorted(i for i, _ in cheapest), "dearest_hours": sorted(i for i, _ in dearest),
+        **night_stats(hours),
     }
 
 
@@ -343,6 +350,7 @@ T = {
         "status_missing": f"O OMIE ainda não publicou os preços de amanhã (costuma publicar por volta das {PUBLISH_HINT_LOCAL}). Próxima tentativa às {RETRY_HINT_UTC} UTC. Abaixo: os preços de hoje.",
         "cheap": "Mais barato (3 horas seguidas)", "dear": "Mais caro (3 horas seguidas)",
         "cheapest3": "3 horas mais baratas (horas isoladas, não necessariamente seguidas)", "dearest3": "3 horas mais caras",
+        "night": "Noite 00:00–06:00", "night_avg": "média", "night_cheap": "janela mais barata", "night_none": "sem dados",
         "avg": "Média do dia", "avg_part": "Média das horas disponíveis",
         "incomplete": "Dados para {n} de {m} horas; falta {missing} (a OMIE publica amanhã). Janelas e média usam só as horas conhecidas.",
         "tz": "Horas de Portugal continental (Europe/Lisbon).",
@@ -374,6 +382,7 @@ T = {
         "status_missing": f"OMIE has not published tomorrow's prices yet (usually around {PUBLISH_HINT_LOCAL} local time). Next attempt at {RETRY_HINT_UTC} UTC. Below: today's prices.",
         "cheap": "Cheapest (3 consecutive hours)", "dear": "Most expensive (3 consecutive hours)",
         "cheapest3": "3 cheapest single hours, not necessarily consecutive", "dearest3": "3 most expensive hours",
+        "night": "Night 00:00–06:00", "night_avg": "average", "night_cheap": "cheapest window", "night_none": "no data",
         "avg": "Day average", "avg_part": "Average of the available hours",
         "incomplete": "Data for {n} of {m} hours; {missing} is missing (OMIE publishes it tomorrow). Windows and average use only the known hours.",
         "tz": "Hours in mainland Portugal time (Europe/Lisbon).",
@@ -453,6 +462,13 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     p.append(f"<div><dt>{esc(t['dear'])}</dt><dd class=\"r\">{esc(window_text(hours, st['dear_window']))} · {fmt(st['dear_window']['avg']) if st['dear_window'] else '—'} €/MWh</dd></div>")
     p.append(f"<div><dt>{esc(t['cheapest3'])}</dt><dd>{esc(', '.join(hours[i]['label'] for i in ch))}</dd></div>")
     p.append(f"<div><dt>{esc(t['dearest3'])}</dt><dd>{esc(', '.join(hours[i]['label'] for i in st['dearest_hours']))}</dd></div>")
+    na, nn = st.get("night_avg_00_06"), st.get("night_hours_00_06", 0)
+    cwn = st["cheap_window"]
+    ntxt = (f"{fmt(na)} €/MWh" + ("" if nn == 6 else f" ({nn}/6 h)")) if na is not None else f"{t['night_none']} (0/6 h)"
+    ntxt = f"{t['night_avg']} {ntxt}" if na is not None else ntxt
+    if cwn:
+        ntxt += f" ({t['night_cheap']}: {window_text(hours, cwn)}, {t['night_avg']} {fmt(cwn['avg'])} €/MWh)"
+    p.append(f"<div class=\"night\"><dt>{esc(t['night'])}</dt><dd>{esc(ntxt)}</dd></div>")
     yd = cmp.get("vs_yesterday")
     wk = cmp.get("vs_week")
     p.append(f"<div><dt>{esc(t['avg_part'] if partial else t['avg'])}</dt><dd>{fmt(st['avg'])} €/MWh"
