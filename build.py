@@ -366,7 +366,7 @@ T = {
         "updated": "atualizado",
         "nodata_all": "Sem dados para este dia.",
         "caveat": "Horas mais baratas no preço grossista OMIE. O efeito na sua fatura depende do contrato; num tarifário fixo o preço não muda de hora a hora.",
-        "tg_when": "Receba no Telegram todos os dias: por volta das 14:05 (hora de Lisboa) as horas mais baratas de amanhã, e às 07:00 as de hoje.",
+        "tg_when": "Receba no Telegram, todos os dias: às 07:00 as horas mais baratas de hoje e por volta das 14:00 (hora de Lisboa) as de amanhã.",
         "when_tomorrow": "Os preços de amanhã aparecem aqui normalmente entre as 13:15 e as 14:30 (hora de Lisboa).",
         "rss_note": "RSS: /feed.xml dá um item por dia, com os preços.",
         "en_link": "English below",
@@ -398,7 +398,7 @@ T = {
         "updated": "updated",
         "nodata_all": "No data for this day.",
         "caveat": "Cheapest hours in the OMIE wholesale price. The effect on your bill depends on your contract; on a fixed tariff the price does not change by the hour.",
-        "tg_when": "Get it on Telegram every day: around 14:05 (Lisbon time) the cheapest hours for tomorrow, and at 07:00 those for today.",
+        "tg_when": "Get it on Telegram daily: today's cheapest hours at 07:00, tomorrow's at about 14:00 Lisbon time.",
         "when_tomorrow": "Tomorrow's prices usually appear here between 13:15 and 14:30 Lisbon time.",
         "rss_note": "RSS: /feed.xml gives one item per day, with the prices.",
         "en_link": "",
@@ -446,9 +446,9 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     p.append(f"<p class=\"lead\">{esc(t['lead'])}</p>")
     if status and not today_mode:
         p.append(f'<p class="status">{esc(t[status])}</p>')
+    p.append(f'<p class="note tg-when"><a href="/go/telegram/">{esc(t["tg_when"])}</a></p>')
     if not neutral:
         p.append(f'<p class="note when">{esc(t["when_tomorrow"])}</p>')
-        p.append(f'<p class="note tg-when"><a href="/go/telegram/">{esc(t["tg_when"])}</a></p>')
         p.append(f'<p class="note rss-note"><a href="/feed.xml">{esc(t["rss_note"])}</a></p>')
     if not st.get("available"):
         p.append(f"<p>{esc(t['nodata_all'])}</p>" + feedback_links(lang, day) + "</section>")
