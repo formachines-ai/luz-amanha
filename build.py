@@ -540,6 +540,7 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
         "source_file": source_file, "built_utc": built.isoformat(timespec="seconds"),
         "hours": [{"hour": x["label"], "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_es_eur_mwh": x["es"],
                    "energy_eur_kwh": None if x["pt"] is None else round(x["pt"] / 1000, 4) + 0.0,
+                   **({"missing_reason": "needs_next_day_omie_file" if x["label"] == "23:00" else "not_in_omie_file"} if x["pt"] is None else {}),
                    **({"estimate_eur_kwh": None if x["pt"] is None else estimate_kwh(x["pt"], tariff)} if tariff.get("enabled") else {})}
                   for x in hours],
         "stats": {k: v for k, v in st.items()},
@@ -612,6 +613,7 @@ def static_pages(built: dt.datetime) -> None:
 - {SITE_BASE}/tomorrow.json — tomorrow (Lisbon calendar day), hours in Europe/Lisbon time, price_pt_eur_mwh per hour, cheap_window, dear_window, stats
 - {SITE_BASE}/today.json — today
 - Field definitions: cheapest_hours = the 3 cheapest single hours of the day (not necessarily consecutive); cheap_window and stats.cheap_window = the cheapest 3 consecutive hours (lowest average). The two can differ.
+- missing_reason: present only on an hours[] entry whose price_pt_eur_mwh is null (never on hours with a price). Values: needs_next_day_omie_file = the Lisbon hour 23:00 lies in the next day's OMIE file, not yet published; not_in_omie_file = any other hour absent from the OMIE files we hold. No price is ever estimated for these hours.
 - {SITE_BASE}/d/YYYY-MM-DD/index.json — archive, one file per day. /d/YYYY-MM-DD/ and its index.json exist only after OMIE publishes that day (about 13:00 CET); until then tomorrow.json has available:false and the archive URL returns 404.
 - {SITE_BASE}/feed.xml — RSS, one item per published day
 - {SITE_BASE}/build.json — when the site was last built and which OMIE files it used
