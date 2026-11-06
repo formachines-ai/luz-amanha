@@ -1,7 +1,232 @@
 {
  "date": "2026-11-07",
- "available": false,
- "note": "not published by OMIE yet",
- "next_attempt_utc": "13:45",
- "built_utc": "2026-11-06T13:45:01+00:00"
+ "available": true,
+ "timezone": "Europe/Lisbon",
+ "unit": "EUR/MWh",
+ "market": "OMIE day-ahead, Portugal",
+ "source_file": "marginalpdbcpt_20261107.1",
+ "built_utc": "2026-11-06T17:10:31+00:00",
+ "hours": [
+  {
+   "hour": "00:00",
+   "start_utc": "2026-11-07T00:00:00+00:00",
+   "price_pt_eur_mwh": 237.59,
+   "price_es_eur_mwh": 237.59,
+   "energy_eur_kwh": 0.2376
+  },
+  {
+   "hour": "01:00",
+   "start_utc": "2026-11-07T01:00:00+00:00",
+   "price_pt_eur_mwh": 236.18,
+   "price_es_eur_mwh": 236.18,
+   "energy_eur_kwh": 0.2362
+  },
+  {
+   "hour": "02:00",
+   "start_utc": "2026-11-07T02:00:00+00:00",
+   "price_pt_eur_mwh": 229.75,
+   "price_es_eur_mwh": 229.75,
+   "energy_eur_kwh": 0.2298
+  },
+  {
+   "hour": "03:00",
+   "start_utc": "2026-11-07T03:00:00+00:00",
+   "price_pt_eur_mwh": 226.75,
+   "price_es_eur_mwh": 226.75,
+   "energy_eur_kwh": 0.2268
+  },
+  {
+   "hour": "04:00",
+   "start_utc": "2026-11-07T04:00:00+00:00",
+   "price_pt_eur_mwh": 226.59,
+   "price_es_eur_mwh": 226.59,
+   "energy_eur_kwh": 0.2266
+  },
+  {
+   "hour": "05:00",
+   "start_utc": "2026-11-07T05:00:00+00:00",
+   "price_pt_eur_mwh": 236.63,
+   "price_es_eur_mwh": 236.63,
+   "energy_eur_kwh": 0.2366
+  },
+  {
+   "hour": "06:00",
+   "start_utc": "2026-11-07T06:00:00+00:00",
+   "price_pt_eur_mwh": 248.63,
+   "price_es_eur_mwh": 248.63,
+   "energy_eur_kwh": 0.2486
+  },
+  {
+   "hour": "07:00",
+   "start_utc": "2026-11-07T07:00:00+00:00",
+   "price_pt_eur_mwh": 248.68,
+   "price_es_eur_mwh": 248.68,
+   "energy_eur_kwh": 0.2487
+  },
+  {
+   "hour": "08:00",
+   "start_utc": "2026-11-07T08:00:00+00:00",
+   "price_pt_eur_mwh": 238.67,
+   "price_es_eur_mwh": 238.67,
+   "energy_eur_kwh": 0.2387
+  },
+  {
+   "hour": "09:00",
+   "start_utc": "2026-11-07T09:00:00+00:00",
+   "price_pt_eur_mwh": 204.4,
+   "price_es_eur_mwh": 204.4,
+   "energy_eur_kwh": 0.2044
+  },
+  {
+   "hour": "10:00",
+   "start_utc": "2026-11-07T10:00:00+00:00",
+   "price_pt_eur_mwh": 191.63,
+   "price_es_eur_mwh": 191.63,
+   "energy_eur_kwh": 0.1916
+  },
+  {
+   "hour": "11:00",
+   "start_utc": "2026-11-07T11:00:00+00:00",
+   "price_pt_eur_mwh": 175.19,
+   "price_es_eur_mwh": 175.19,
+   "energy_eur_kwh": 0.1752
+  },
+  {
+   "hour": "12:00",
+   "start_utc": "2026-11-07T12:00:00+00:00",
+   "price_pt_eur_mwh": 171.03,
+   "price_es_eur_mwh": 171.03,
+   "energy_eur_kwh": 0.171
+  },
+  {
+   "hour": "13:00",
+   "start_utc": "2026-11-07T13:00:00+00:00",
+   "price_pt_eur_mwh": 172.15,
+   "price_es_eur_mwh": 172.15,
+   "energy_eur_kwh": 0.1721
+  },
+  {
+   "hour": "14:00",
+   "start_utc": "2026-11-07T14:00:00+00:00",
+   "price_pt_eur_mwh": 188.63,
+   "price_es_eur_mwh": 188.63,
+   "energy_eur_kwh": 0.1886
+  },
+  {
+   "hour": "15:00",
+   "start_utc": "2026-11-07T15:00:00+00:00",
+   "price_pt_eur_mwh": 216.4,
+   "price_es_eur_mwh": 216.4,
+   "energy_eur_kwh": 0.2164
+  },
+  {
+   "hour": "16:00",
+   "start_utc": "2026-11-07T16:00:00+00:00",
+   "price_pt_eur_mwh": 260.7,
+   "price_es_eur_mwh": 260.7,
+   "energy_eur_kwh": 0.2607
+  },
+  {
+   "hour": "17:00",
+   "start_utc": "2026-11-07T17:00:00+00:00",
+   "price_pt_eur_mwh": 277.72,
+   "price_es_eur_mwh": 277.72,
+   "energy_eur_kwh": 0.2777
+  },
+  {
+   "hour": "18:00",
+   "start_utc": "2026-11-07T18:00:00+00:00",
+   "price_pt_eur_mwh": 275.0,
+   "price_es_eur_mwh": 275.0,
+   "energy_eur_kwh": 0.275
+  },
+  {
+   "hour": "19:00",
+   "start_utc": "2026-11-07T19:00:00+00:00",
+   "price_pt_eur_mwh": 277.61,
+   "price_es_eur_mwh": 277.61,
+   "energy_eur_kwh": 0.2776
+  },
+  {
+   "hour": "20:00",
+   "start_utc": "2026-11-07T20:00:00+00:00",
+   "price_pt_eur_mwh": 285.68,
+   "price_es_eur_mwh": 285.68,
+   "energy_eur_kwh": 0.2857
+  },
+  {
+   "hour": "21:00",
+   "start_utc": "2026-11-07T21:00:00+00:00",
+   "price_pt_eur_mwh": 263.46,
+   "price_es_eur_mwh": 263.46,
+   "energy_eur_kwh": 0.2635
+  },
+  {
+   "hour": "22:00",
+   "start_utc": "2026-11-07T22:00:00+00:00",
+   "price_pt_eur_mwh": 238.65,
+   "price_es_eur_mwh": 238.65,
+   "energy_eur_kwh": 0.2387
+  },
+  {
+   "hour": "23:00",
+   "start_utc": "2026-11-07T23:00:00+00:00",
+   "price_pt_eur_mwh": null,
+   "price_es_eur_mwh": null,
+   "energy_eur_kwh": null,
+   "missing_reason": "needs_next_day_omie_file"
+  }
+ ],
+ "stats": {
+  "available": 23,
+  "hours_expected": 24,
+  "complete": false,
+  "avg": 231.64,
+  "min": 171.03,
+  "max": 285.68,
+  "cheap_window": {
+   "start": 11,
+   "end": 14,
+   "avg": 172.79
+  },
+  "dear_window": {
+   "start": 18,
+   "end": 21,
+   "avg": 279.43
+  },
+  "cheapest_hours": [
+   11,
+   12,
+   13
+  ],
+  "dearest_hours": [
+   17,
+   19,
+   20
+  ],
+  "night_avg_00_06": 232.25,
+  "night_hours_00_06": 6
+ },
+ "comparison": {
+  "day_avg_file": 232.58,
+  "yesterday_avg": 248.54,
+  "week_avg": 213.66,
+  "week_days": 7,
+  "vs_yesterday": -6.8,
+  "vs_week": 8.4,
+  "basis": "Lisbon-hour averages over available hours (yesterday_avg, week_avg, vs_*); day_avg_file = OMIE file day, Madrid time"
+ },
+ "cheap_window": {
+  "hours": "11:00–14:00",
+  "avg_eur_mwh": 172.79
+ },
+ "dear_window": {
+  "hours": "18:00–21:00",
+  "avg_eur_mwh": 279.43
+ },
+ "estimate": {
+  "enabled": false,
+  "note": "estimate, not a bill"
+ },
+ "disclosure": "Made by AI agents (agent-team) without human editing; responsible: Dmitriy, bymachines.ai. License CC BY 4.0."
 }

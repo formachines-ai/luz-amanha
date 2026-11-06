@@ -55,6 +55,8 @@ HTTP_TIMEOUT_S = 30
 USER_AGENT = f"luz-amanha-build/1.0 (+{SITE_BASE}; static site, 1 request per file per day)"
 PUBLISH_HINT_LOCAL = "13:00"             # OMIE listing showed 13:27–14:18 Madrid time on 23–31.10.2026
 RETRY_HINT_UTC = "13:45"
+SCHEDULE_UTC = ("13:15", "13:45")  # cron slots (README)
+MISSING: dict = {}  # filled by build() when tomorrow is missing
 
 WINDOW_HOURS = 3                         # consecutive cheap/expensive window length
 HISTORY_DAYS = 7                         # for the 7-day comparison
@@ -68,6 +70,36 @@ log = logging.getLogger("luz")
 # ----------------------------------------------------------------------------- FETCH
 class OmieMissing(Exception):
     """The file for that date is not published (HTTP 404 or an HTML body instead of data)."""
+
+
+FETCH_CODE: dict = {}  # day -> HTTP status of the last real fetch ("error" on network failure)
+
+
+def status_text(lang: str, t: dict, status: str) -> str:
+    if status != "status_missing":
+        return t[status]
+    m = MISSING
+    d = m.get("date")
+    dd = f"{d:%d.%m}" if d else "?"
+    la = m.get("last_attempt")
+    nxt = m.get("next_attempt")
+    if lang == "pt":
+        s = f"Ainda não temos os preços de {dd}."
+        if la:
+            s += f" Última tentativa: {la:%d.%m} às {la:%H:%M} UTC;"
+        if m.get("code") == 404:
+            s += " o OMIE ainda não publicou o ficheiro (HTTP 404);"
+        if nxt:
+            s += f" próxima tentativa: {nxt} UTC;"
+        return s.rstrip(";") + "; abaixo estão os preços de hoje." if s.endswith(";") else s + " Abaixo estão os preços de hoje."
+    s = f"We do not have the prices for {dd} yet."
+    if la:
+        s += f" Last attempt: {la:%d.%m} at {la:%H:%M} UTC;"
+    if m.get("code") == 404:
+        s += " OMIE has not published the file (HTTP 404);"
+    if nxt:
+        s += f" next attempt: {nxt} UTC;"
+    return s.rstrip(";") + "; below are today's prices." if s.endswith(";") else s + " Below are today's prices."
 
 
 def omie_filename(day: dt.date) -> str:
@@ -104,11 +136,14 @@ def fetch_day(day: dt.date, offline: bool = False) -> str | None:
             ctype = r.headers.get("Content-Type", "")
             status = r.status
     except urllib.error.HTTPError as e:
+        FETCH_CODE[day] = e.code
         log.info("OMIE %s -> HTTP %s (not published yet or wrong name)", omie_filename(day), e.code)
         return None
     except (urllib.error.URLError, TimeoutError, OSError) as e:
+        FETCH_CODE[day] = "error"
         log.error("network error for %s: %s", day, e)
         return None
+    FETCH_CODE[day] = status
     text = body.decode("latin-1")
     if status != 200 or "text/html" in ctype or not looks_like_omie(text):
         log.info("OMIE %s -> %s %s, body is not an OMIE file (%d bytes)", omie_filename(day), status, ctype, len(body))
@@ -347,7 +382,7 @@ T = {
         "lead": "Preço grossista da eletricidade em Portugal por hora (mercado diário OMIE) e as horas mais baratas para ligar a máquina, o termoacumulador ou carregar o carro.",
         "for_day": "Preços para",
         "status_ok": "Dados de amanhã publicados pelo OMIE.",
-        "status_missing": f"O OMIE ainda não publicou os preços de amanhã (costuma publicar por volta das {PUBLISH_HINT_LOCAL}). Próxima tentativa às {RETRY_HINT_UTC} UTC. Abaixo: os preços de hoje.",
+        "status_missing": "",
         "cheap": "Mais barato (3 horas seguidas)", "dear": "Mais caro (3 horas seguidas)",
         "cheapest3": "3 horas mais baratas (horas isoladas, não necessariamente seguidas)", "dearest3": "3 horas mais caras",
         "night": "Noite 00:00–06:00", "night_avg": "média", "night_cheap": "janela mais barata", "night_none": "sem dados",
@@ -379,7 +414,7 @@ T = {
         "lead": "Wholesale hourly electricity price for Portugal (OMIE day-ahead market) and the cheapest hours to run the washing machine, the water heater or charge the car.",
         "for_day": "Prices for",
         "status_ok": "Tomorrow's prices are published by OMIE.",
-        "status_missing": f"OMIE has not published tomorrow's prices yet (usually around {PUBLISH_HINT_LOCAL} local time). Next attempt at {RETRY_HINT_UTC} UTC. Below: today's prices.",
+        "status_missing": "",
         "cheap": "Cheapest (3 consecutive hours)", "dear": "Most expensive (3 consecutive hours)",
         "cheapest3": "3 cheapest single hours, not necessarily consecutive", "dearest3": "3 most expensive hours",
         "night": "Night 00:00–06:00", "night_avg": "average", "night_cheap": "cheapest window", "night_none": "no data",
@@ -442,10 +477,10 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     if lang == "pt":
         p.append('<p class="note en-jump"><a href="#en" lang="en">English ↓</a></p>')
     if status and today_mode:
-        p.append(f'<p class="status">{esc(t[status])}</p>')
+        p.append(f'<p class="status">{esc(status_text(lang, t, status))}</p>')
     p.append(f"<p class=\"lead\">{esc(t['lead'])}</p>")
     if status and not today_mode:
-        p.append(f'<p class="status">{esc(t[status])}</p>')
+        p.append(f'<p class="status">{esc(status_text(lang, t, status))}</p>')
     p.append(f'<p class="note tg-when"><a href="/go/telegram/">{esc(t["tg_when"])}</a></p>')
     if not neutral:
         p.append(f'<p class="note when">{esc(t["when_tomorrow"])}</p>')
@@ -794,6 +829,9 @@ def build(target: dt.date, offline: bool) -> int:
     have_target = target in files
     main_day = target if have_target else today
     status = "status_ok" if have_target else "status_missing"
+    if not have_target:
+        nxt = next((x for x in SCHEDULE_UTC if x > f"{built:%H:%M}"), None)
+        MISSING.update(date=target, last_attempt=built, next_attempt=nxt, code=FETCH_CODE.get(target))
     if not have_target and today not in files:
         log.error("neither %s nor today %s available — index will say so", target, today)
     per_day: dict[dt.date, dict] = {}
@@ -801,8 +839,9 @@ def build(target: dt.date, offline: bool) -> int:
         per_day[d] = render_day(d, files, tariff, built, None, index_page=False)
     main = render_day(main_day, files, tariff, built, status, index_page=True)
     per_day[main_day] = main
-    tomorrow = per_day.get(target) or {"date": target.isoformat(), "available": False, "note": "not published by OMIE yet",
-                                        "next_attempt_utc": RETRY_HINT_UTC, "built_utc": built.isoformat(timespec="seconds")}
+    tomorrow = per_day.get(target) or {"date": target.isoformat(), "available": False, "note": ("not published by OMIE (HTTP 404)" if FETCH_CODE.get(target) == 404 else "no file for this date at the last attempt"),
+                                        "last_attempt": built.isoformat(timespec="seconds"), "last_attempt_http": FETCH_CODE.get(target),
+                                        "next_attempt_utc": MISSING.get("next_attempt"), "built_utc": built.isoformat(timespec="seconds")}
     write(PUBLIC_DIR / "tomorrow.json", json.dumps(tomorrow, ensure_ascii=False, indent=1))
     write(PUBLIC_DIR / "today.json", json.dumps(per_day.get(today) or {"date": today.isoformat(), "available": False}, ensure_ascii=False, indent=1))
     archive_index(list(files), per_day, built)
