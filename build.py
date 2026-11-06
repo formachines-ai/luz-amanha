@@ -702,12 +702,14 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
 def archive_index(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) -> None:
     """One summary row per day; every value is read from the same dict that is written to /d/YYYY-MM-DD/index.json."""
     rows = []
+    wins: list[str] = []  # cheap window of every row with data, newest first
     for d in sorted(days, reverse=True):
         iso = d.isoformat()
         j = per_day.get(d) or {}
         st = j.get("stats") or {}
         cw = j.get("cheap_window")
         if st.get("available"):
+            wins.append(cw["hours"] if cw else "")
             mh = next((h["hour"] for h in j["hours"] if h["price_pt_eur_mwh"] == st["min"]), "")
             cheap = f'{esc(cw["hours"])} · {cw["avg_eur_mwh"]:.2f}' if cw else "–"
             dw = j.get("dear_window")
@@ -721,9 +723,18 @@ def archive_index(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.d
             cheap = dear = davg = mn = known = "–"
         rows.append(f'<tr><th scope="row"><a href="/d/{iso}/">{d:%d.%m.%Y}</a></th><td>{cheap}</td><td>{dear}</td><td>{davg}</td><td>{mn}</td><td>{known}</td>'
                     f'<td><a href="/d/{iso}/index.json">json</a></td></tr>')
+    summary = ""
+    counts = {w: wins.count(w) for w in wins if w}
+    if counts:
+        top = max(counts.values())
+        best = next(w for w in wins if counts.get(w) == top)  # ties: the most recent day's window
+        m = len(wins)
+        summary = (f'<p><strong>Janela mais barata mais frequente: {esc(best)} em {top} dos últimos {m} dias.</strong> '
+                   f'<span lang="en">Most frequent cheapest window: {esc(best)} on {top} of the last {m} days.</span></p>')
     body = ('<section lang="pt"><h1>Arquivo por dia / Archive</h1>'
             '<p>Preço grossista OMIE (Portugal), €/MWh. Janela barata = 3 horas seguidas com a média mais baixa; janela cara = 3 horas seguidas com a média mais alta; média do dia = média das horas disponíveis; mínimo = hora mais barata; horas conhecidas = N/24. '
             '<span id="en" lang="en">OMIE wholesale price, €/MWh. Dear window = most expensive 3 consecutive hours (average); day average = mean of the available hours. Cheap window = cheapest 3 consecutive hours (average); minimum = cheapest single hour; known hours = N/24.</span></p>'
+            + summary +
             '<table class="archive"><thead><tr><th scope="col">Dia / Day</th><th scope="col">Janela barata · média €/MWh<br><span lang="en">Cheap window · average €/MWh</span></th>'
             '<th scope="col">Janela cara · média €/MWh<br><span lang="en">Dear window · average €/MWh</span></th><th scope="col">Média do dia €/MWh<br><span lang="en">Day average €/MWh</span></th>'
             '<th scope="col">Mínimo €/MWh (hora)<br><span lang="en">Minimum €/MWh (hour)</span></th><th scope="col">Horas / Hours</th><th scope="col">JSON</th></tr></thead>'
