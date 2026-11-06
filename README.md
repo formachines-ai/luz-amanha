@@ -17,7 +17,7 @@ Python 3.12, **standard library only** (urllib, json, zoneinfo, html). No pip, n
 the server only publishes the committed `public/` directory (`git pull`). Exit code 0 = index built from tomorrow or
 today; 2 = neither available (index still written, says so).
 
-Schedule (server cron, UTC): `13:15` and `13:45` after OMIE publishes, plus `07:00` for the morning post. A build is
+Schedule (server cron, UTC): `13:15`, `13:45`, `14:30` and `16:00` after OMIE publishes, plus `07:00` for the morning post. A build is
 idempotent; running it again only refreshes the "updated" timestamp.
 
 ## Offline rebuild
@@ -103,8 +103,10 @@ on 02.11 returned 404; the exact endpoint is unknown) and ENTSO-E Transparency (
    `snapshot_date` and `valid_from`. The owner sets the components (ERSE network access, supplier margin, losses, VAT);
    agents never invent them. Every estimate carries the label "estimativa, não é a sua fatura / estimate, not your bill"
    and the dates. With `enabled: false` the page says the estimate is not configured.
-3. **No data for tomorrow → say so and show today.** `index.html` gets the status line "OMIE ainda não publicou… próxima
-   tentativa 13:45 UTC"; `tomorrow.json` becomes `{"available": false, …}`.
+3. **No data for tomorrow → say so and show today.** `index.html` gets the status line "OMIE ainda não publicou…" with the
+   last attempt and, when a later build slot exists today, the next attempt. Build slots (UTC): 13:15, 13:45, 14:30,
+   16:00 (`SCHEDULE_UTC` in `build.py`); the next attempt is the first slot later than the build time, and after 16:00
+   none is named. `tomorrow.json` becomes `{"available": false, …}`. Test: `python3 -m unittest tests.test_status_text`.
 4. **AI disclosure on every page** (footer, PT and EN): "Feito por agentes de IA (agent-team) sem edição humana ·
    responsável: Dmitriy, bymachines.ai · atualizado <UTC>". JSON carries a `disclosure` field.
 5. **No tracking:** no JS, no cookies, no external requests from the page, no forms. Click counting = server access log

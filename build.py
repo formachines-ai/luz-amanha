@@ -55,7 +55,13 @@ HTTP_TIMEOUT_S = 30
 USER_AGENT = f"luz-amanha-build/1.0 (+{SITE_BASE}; static site, 1 request per file per day)"
 PUBLISH_HINT_LOCAL = "13:00"             # OMIE listing showed 13:27–14:18 Madrid time on 23–31.10.2026
 RETRY_HINT_UTC = "13:45"
-SCHEDULE_UTC = ("13:15", "13:45")  # cron slots (README)
+SCHEDULE_UTC = ("13:15", "13:45", "14:30", "16:00")  # build slots (README rule 3)
+
+
+def next_slot(built: dt.datetime):
+    """First build slot (UTC, "HH:MM") strictly later than the build time; None when no slot is left today."""
+    hm = f"{built.astimezone(dt.timezone.utc):%H:%M}" if built.tzinfo else f"{built:%H:%M}"
+    return next((x for x in SCHEDULE_UTC if x > hm), None)
 MISSING: dict = {}  # filled by build() when tomorrow is missing
 
 WINDOW_HOURS = 3                         # consecutive cheap/expensive window length
@@ -655,7 +661,7 @@ def static_pages(built: dt.datetime) -> None:
 
 ## Facts about the data
 - Source: OMIE public file marginalpdbcpt_YYYYMMDD.1 (https://www.omie.es/), column "price Portugal". 96 quarter-hour periods in CET/CEST, averaged per Lisbon hour.
-- OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15 and 13:45 UTC.
+- OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15, 13:45, 14:30 and 16:00 UTC.
 - The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
 
@@ -830,7 +836,7 @@ def build(target: dt.date, offline: bool) -> int:
     main_day = target if have_target else today
     status = "status_ok" if have_target else "status_missing"
     if not have_target:
-        nxt = next((x for x in SCHEDULE_UTC if x > f"{built:%H:%M}"), None)
+        nxt = next_slot(built)
         MISSING.update(date=target, last_attempt=built, next_attempt=nxt, code=FETCH_CODE.get(target))
     if not have_target and today not in files:
         log.error("neither %s nor today %s available — index will say so", target, today)
