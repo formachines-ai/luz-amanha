@@ -13,7 +13,7 @@
 
 ## Facts about the data
 - Source: OMIE public file marginalpdbcpt_YYYYMMDD.1 (https://www.omie.es/), column "price Portugal". 96 quarter-hour periods in CET/CEST, averaged per Lisbon hour.
-- OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15 and 13:45 UTC.
+- OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15, 13:45, 14:30 and 16:00 UTC.
 - The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
 
