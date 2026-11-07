@@ -1,4 +1,5 @@
 """Keys read by the /ha/ YAML exist in available JSON; unguarded reads exist in unavailable JSON (T-0091)."""
+import datetime as dt
 import re
 import sys
 import unittest
@@ -11,14 +12,23 @@ import build  # noqa: E402
 
 class HaKeys(unittest.TestCase):
     def test_keys(self):
-        import json
-        avail = json.loads((ROOT / "public" / "d" / "2026-11-03" / "index.json").read_text()) \
-            if (ROOT / "public" / "d" / "2026-11-03" / "index.json").exists() else None
-        if avail is None:
-            ds = sorted((ROOT / "public" / "d").glob("*/index.json"))
-            avail = json.loads(ds[-1].read_text())
+        built = dt.datetime(2026, 11, 3, 13, 15, tzinfo=dt.timezone.utc)
+        day = dt.date(2026, 11, 3)
+        fx = build.parse_omie((ROOT / "data" / "fixtures" / "marginalpdbcpt_20261103.1").read_text(encoding="latin-1"))
+        files = {day: fx}
+        hours = build.lisbon_hours(day, files)
+        st = build.stats(hours)
+        avail = build.day_json(day, hours, st, build.comparison(day, files), build.load_tariff(), built, build.omie_filename(day))
         self.assertTrue(avail["available"])
-        unavail = {"date": "2026-11-09", "available": False, "note": "x"}
+        unavail = build.unavailable_json(dt.date(2026, 11, 4), built, 404, None, with_note=True)
+        today_unavail = build.unavailable_json(dt.date(2026, 11, 3), built)
+        for j in (avail, unavail, today_unavail):
+            self.assertRegex(j["built_utc"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$")
+            self.assertEqual(j["timezone"], "Europe/Lisbon")
+            self.assertIn("AI agent", j["disclosure"])
+            self.assertIn("Dmitriy", j["disclosure"])
+        self.assertEqual(set(today_unavail), {"date", "available", "built_utc", "timezone", "disclosure"})
+        self.assertFalse(unavail["available"])
         for name in ("YAML1", "YAML2"):
             y = getattr(build, name)
             for m in re.finditer(r"\{\{(.*?)\}\}", y, re.S):
