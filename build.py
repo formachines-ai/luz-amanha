@@ -408,7 +408,7 @@ T = {
         "nodata_all": "Sem dados para este dia.",
         "caveat": "Horas mais baratas no preço grossista OMIE. O efeito na sua fatura depende do contrato; num tarifário fixo o preço não muda de hora a hora.",
         "tg_when": "Receba no Telegram, todos os dias: às 07:00 as horas mais baratas de hoje e por volta das 14:00 (hora de Lisboa) as de amanhã.",
-        "when_tomorrow": "Os preços de amanhã aparecem aqui normalmente entre as 13:15 e as 14:30 (hora de Lisboa).",
+        "when_tomorrow": "Os preços de amanhã costumam aparecer aqui entre as {a} e as {b} UTC (hora de Lisboa no inverno).",
         "rss_note": "RSS: /feed.xml dá um item por dia, com os preços.",
         "en_link": "English below",
     },
@@ -440,7 +440,7 @@ T = {
         "nodata_all": "No data for this day.",
         "caveat": "Cheapest hours in the OMIE wholesale price. The effect on your bill depends on your contract; on a fixed tariff the price does not change by the hour.",
         "tg_when": "Get it on Telegram daily: today's cheapest hours at 07:00, tomorrow's at about 14:00 Lisbon time.",
-        "when_tomorrow": "Tomorrow's prices usually appear here between 13:15 and 14:30 Lisbon time.",
+        "when_tomorrow": "Tomorrow's prices usually appear here between {a} and {b} UTC (Lisbon time in winter).",
         "rss_note": "RSS: /feed.xml gives one item per day, with the prices.",
         "en_link": "",
     },
@@ -481,7 +481,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     h1 = t["h1_day"] if neutral else t["h1_today"] if today_mode else t["h1"]
     p = [f'<section id="{lang}" lang="{lang}">', f"<{hd}>{esc(h1)} — {esc(labels)}</{hd}>"]
     if lang == "pt":
-        p.append('<p class="note en-jump"><a href="#en" lang="en">English ↓</a></p>')
+        p.append('<p class="note en-jump"><a href="#en" lang="en">English</a></p>')
     if status and today_mode:
         p.append(f'<p class="status">{esc(status_text(lang, t, status))}</p>')
     p.append(f"<p class=\"lead\">{esc(t['lead'])}</p>")
@@ -489,7 +489,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
         p.append(f'<p class="status">{esc(status_text(lang, t, status))}</p>')
     p.append(f'<p class="note tg-when"><a href="/go/telegram/">{esc(t["tg_when"])}</a></p>')
     if not neutral:
-        p.append(f'<p class="note when">{esc(t["when_tomorrow"])}</p>')
+        p.append(f'<p class="note when">{esc(t["when_tomorrow"].format(a=SCHEDULE_UTC[0], b=SCHEDULE_UTC[2]))}</p>')
         p.append(f'<p class="note rss-note"><a href="/feed.xml">{esc(t["rss_note"])}</a></p>')
     if not st.get("available"):
         p.append(f"<p>{esc(t['nodata_all'])}</p>" + feedback_links(lang, day) + "</section>")
