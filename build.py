@@ -399,6 +399,7 @@ T = {
         "vs_yday": "vs. ontem", "vs_week": "vs. média dos últimos 7 dias",
         "hour23": "A hora 23:00 só fica disponível no dia seguinte (o OMIE publica em hora de Espanha).",
         "fact": "€/MWh é o preço marginal do mercado diário OMIE para Portugal — um facto, sem impostos, redes nem margem do comercializador.",
+        "kwh_note": "Preço OMIE ÷ 1000 = €/kWh de energia no mercado; o seu comercializador soma perdas, margem, tarifas de acesso (TAR) e IVA — não é a sua fatura.",
         "est_off": "Preço grossista OMIE, sem impostos, redes nem margem; a sua fatura depende do contrato.",
         "est_on": "Estimativa, não é a sua fatura:",
         "archive": "Arquivo por dia", "json": "JSON", "feed": "RSS",
@@ -431,6 +432,7 @@ T = {
         "vs_yday": "vs. yesterday", "vs_week": "vs. last 7 days average",
         "hour23": "The 23:00 hour becomes available the next day (OMIE publishes in Spanish time).",
         "fact": "€/MWh is the OMIE day-ahead marginal price for Portugal — a fact, before taxes, grid fees and supplier margin.",
+        "kwh_note": "OMIE price ÷ 1000 = €/kWh of energy on the market; your supplier adds losses, margin, access tariffs (TAR) and VAT — it is not your bill.",
         "est_off": "OMIE wholesale price, without taxes, networks or margin; your bill depends on your contract.",
         "est_on": "Estimate, not your bill:",
         "archive": "Archive by day", "json": "JSON", "feed": "RSS",
@@ -530,6 +532,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
                  f'{esc(tariff.get("source", ""))}, {esc(tariff.get("valid_from", ""))} (snapshot {esc(tariff.get("snapshot_date", ""))}).</p>')
     else:
         p.append(f'<p class="note">{esc(t["est_off"])}</p>')
+    p.append(f'<p class="note kwh-note">{esc(t["kwh_note"])}</p>')
     p.append(hours_table(hours, st, tariff, lang))
     p.append(feedback_links(lang, day))
     p.append("</section>")
