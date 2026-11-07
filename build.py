@@ -597,6 +597,19 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
 
 
 # ----------------------------------------------------------------------------- STATIC PAGES
+UNAVAILABLE_DISCLOSURE = "Published by an AI agent (agent-team), no human editing; responsible: Dmitriy, bymachines.ai"
+
+
+def unavailable_json(day: dt.date, built: dt.datetime, code: int | None = None, next_attempt: object = None, with_note: bool = False) -> dict:
+    """JSON shape when a day has no OMIE data: no prices, windows or hours are invented."""
+    d: dict = {"date": day.isoformat(), "available": False}
+    if with_note:
+        d.update(note=("not published by OMIE (HTTP 404)" if code == 404 else "no file for this date at the last attempt"),
+                 last_attempt=built.isoformat(timespec="seconds"), last_attempt_http=code, next_attempt_utc=next_attempt)
+    d.update(built_utc=built.isoformat(timespec="seconds"), timezone="Europe/Lisbon", disclosure=UNAVAILABLE_DISCLOSURE)
+    return d
+
+
 def write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -690,7 +703,7 @@ def static_pages(built: dt.datetime) -> None:
 - Field definitions: cheapest_hours = the 3 cheapest single hours of the day (not necessarily consecutive); cheap_window and stats.cheap_window = the cheapest 3 consecutive hours (lowest average). The two can differ.
 - missing_reason: present only on an hours[] entry whose price_pt_eur_mwh is null (never on hours with a price). Values: needs_next_day_omie_file = the Lisbon hour 23:00 lies in the next day's OMIE file, not yet published; not_in_omie_file = any other hour absent from the OMIE files we hold. No price is ever estimated for these hours.
 - {SITE_BASE}/d/YYYY-MM-DD/index.json — archive, one file per day. /d/YYYY-MM-DD/ and its index.json exist only after OMIE publishes that day (about 13:00 CET); until then tomorrow.json has available:false and the archive URL returns 404.
-- When available is false (tomorrow.json every day from 00:00 until OMIE publishes, about 13:15 UTC): present = date, available (false), note (tomorrow.json only; today.json has no note). Absent = timezone, unit, market, source_file, built_utc, hours, stats, comparison, cheap_window, dear_window, estimate, disclosure. No price is carried over or invented. Check available first, then read cheap_window, dear_window and stats only when it is true.
+- When available is false (tomorrow.json every day from 00:00 until OMIE publishes, about 13:15 UTC): present = date, available (false), built_utc, timezone, disclosure, and for tomorrow.json also note, last_attempt, last_attempt_http, next_attempt_utc (today.json has no note). Absent = unit, market, source_file, hours, stats, comparison, cheap_window, dear_window, estimate. No price is carried over or invented. Check available first, then read cheap_window, dear_window and stats only when it is true.
 - {SITE_BASE}/feed.xml — RSS, one item per published day
 - {SITE_BASE}/build.json — when the site was last built and which OMIE files it used
 
@@ -883,11 +896,9 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
         per_day[d] = render_day(d, files, tariff, built, None, index_page=False)
     main = render_day(main_day, files, tariff, built, status, index_page=True)
     per_day[main_day] = main
-    tomorrow = per_day.get(target) or {"date": target.isoformat(), "available": False, "note": ("not published by OMIE (HTTP 404)" if FETCH_CODE.get(target) == 404 else "no file for this date at the last attempt"),
-                                        "last_attempt": built.isoformat(timespec="seconds"), "last_attempt_http": FETCH_CODE.get(target),
-                                        "next_attempt_utc": MISSING.get("next_attempt"), "built_utc": built.isoformat(timespec="seconds")}
+    tomorrow = per_day.get(target) or unavailable_json(target, built, FETCH_CODE.get(target), MISSING.get("next_attempt"), with_note=True)
     write(PUBLIC_DIR / "tomorrow.json", json.dumps(tomorrow, ensure_ascii=False, indent=1))
-    write(PUBLIC_DIR / "today.json", json.dumps(per_day.get(today) or {"date": today.isoformat(), "available": False}, ensure_ascii=False, indent=1))
+    write(PUBLIC_DIR / "today.json", json.dumps(per_day.get(today) or unavailable_json(today, built), ensure_ascii=False, indent=1))
     archive_index(list(files), per_day, built)
     feed(list(files), per_day, built)
     static_pages(built)
