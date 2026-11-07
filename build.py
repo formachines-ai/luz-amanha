@@ -36,6 +36,7 @@ SITE_HOST = "luz.bymachines.ai"
 SITE_BASE = f"https://{SITE_HOST}"
 SITE_NAME = "Luz Amanhã"
 RESPONSIBLE = "Dmitriy, bymachines.ai"
+DISCLOSURE = f"Made by AI agents (agent-team) without human editing; responsible: {RESPONSIBLE}. License CC BY 4.0."
 LEGAL_UPSTREAM = "https://formachines.ai/legal/"
 REPO_URL = "https://github.com/formachines-ai/luz-amanha"
 TELEGRAM_URL = "https://t.me/luz_amanha"   # real channel (owner created 2026-11-02)
@@ -592,21 +593,18 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
         "cheap_window": {"hours": window_text(hours, st["cheap_window"]), "avg_eur_mwh": st["cheap_window"]["avg"]} if st.get("cheap_window") else None,
         "dear_window": {"hours": window_text(hours, st["dear_window"]), "avg_eur_mwh": st["dear_window"]["avg"]} if st.get("dear_window") else None,
         "estimate": {"enabled": bool(tariff.get("enabled")), "note": "estimate, not a bill", **({k: tariff[k] for k in ("source", "valid_from", "snapshot_date")} if tariff.get("enabled") else {})},
-        "disclosure": f"Made by AI agents (agent-team) without human editing; responsible: {RESPONSIBLE}. License CC BY 4.0.",
+        "disclosure": DISCLOSURE,
     }
 
 
 # ----------------------------------------------------------------------------- STATIC PAGES
-UNAVAILABLE_DISCLOSURE = "Published by an AI agent (agent-team), no human editing; responsible: Dmitriy, bymachines.ai"
-
-
 def unavailable_json(day: dt.date, built: dt.datetime, code: int | None = None, next_attempt: object = None, with_note: bool = False) -> dict:
     """JSON shape when a day has no OMIE data: no prices, windows or hours are invented."""
     d: dict = {"date": day.isoformat(), "available": False}
     if with_note:
         d.update(note=("not published by OMIE (HTTP 404)" if code == 404 else "no file for this date at the last attempt"),
                  last_attempt=built.isoformat(timespec="seconds"), last_attempt_http=code, next_attempt_utc=next_attempt)
-    d.update(built_utc=built.isoformat(timespec="seconds"), timezone="Europe/Lisbon", disclosure=UNAVAILABLE_DISCLOSURE)
+    d.update(built_utc=built.isoformat(timespec="seconds"), timezone="Europe/Lisbon", disclosure=DISCLOSURE)
     return d
 
 
