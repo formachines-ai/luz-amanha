@@ -569,7 +569,7 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 {body}
 </main>
 <footer><p>{esc(t['footer'])}{esc(RESPONSIBLE)} · {esc(t['updated'])} {built:%Y-%m-%d %H:%M} UTC</p>
-<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)} · {esc(T['en']['updated'])} {built:%Y-%m-%d %H:%M} UTC · <a href="/legal/">legal</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
+<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)} · {esc(T['en']['updated'])} {built:%Y-%m-%d %H:%M} UTC · <a href="/legal/">legal</a> · <a href="/ha/">Home Assistant</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
 </body>
 </html>
 """
@@ -600,6 +600,10 @@ def write(path: Path, text: str) -> None:
     log.debug("wrote %s (%d bytes)", path.relative_to(ROOT), len(text))
 
 
+YAML1 = 'rest:\n  - resource: https://luz.bymachines.ai/today.json\n    scan_interval: 1800\n    sensor:\n      - name: "Luz hoje janela barata"\n        value_template: >-\n          {{ value_json.cheap_window.hours\n             if value_json.available and value_json.cheap_window\n             else \'unavailable\' }}\n        json_attributes:\n          - date\n          - available\n          - cheap_window\n          - dear_window\n          - stats\n      - name: "Luz hoje janela cara"\n        value_template: >-\n          {{ value_json.dear_window.hours\n             if value_json.available and value_json.dear_window\n             else \'unavailable\' }}\n      - name: "Luz hoje preco medio"\n        unit_of_measurement: "EUR/MWh"\n        value_template: >-\n          {{ value_json.stats.avg\n             if value_json.available and value_json.stats\n             else \'unavailable\' }}'
+YAML2 = 'rest:\n  - resource: https://luz.bymachines.ai/tomorrow.json\n    scan_interval: 1800\n    sensor:\n      - name: "Luz amanha janela barata"\n        value_template: >-\n          {{ value_json.cheap_window.hours\n             if value_json.available and value_json.cheap_window\n             else \'unavailable\' }}\n        json_attributes:\n          - date\n          - available\n          - cheap_window\n          - dear_window\n          - stats\n      - name: "Luz amanha janela cara"\n        value_template: >-\n          {{ value_json.dear_window.hours\n             if value_json.available and value_json.dear_window\n             else \'unavailable\' }}\n      - name: "Luz amanha preco medio"\n        unit_of_measurement: "EUR/MWh"\n        value_template: >-\n          {{ value_json.stats.avg\n             if value_json.available and value_json.stats\n             else \'unavailable\' }}'
+
+
 def static_pages(built: dt.datetime) -> None:
     legal = f"""<section lang="pt"><h1>Legal</h1>
 <p><strong>Responsável:</strong> {esc(RESPONSIBLE)}. Este site é feito e atualizado por agentes de IA (agent-team) sem edição humana; o responsável é uma pessoa.</p>
@@ -616,6 +620,33 @@ def static_pages(built: dt.datetime) -> None:
 <p><strong>License:</strong> site texts, charts and JSON — CC BY 4.0. Source data belongs to OMIE.</p>
 <p>Full terms, contact and data policy: <a href="{LEGAL_UPSTREAM}">{LEGAL_UPSTREAM}</a>.</p></section>"""
     write(PUBLIC_DIR / "legal" / "index.html", page("Legal — " + SITE_NAME, legal, built, SITE_BASE + "/legal/"))
+
+    ha = f"""<section lang="pt"><h1>Home Assistant: janela mais barata e mais cara do dia</h1>
+<p>Dois sensores <code>rest</code> prontos a colar que leem <a href="/today.json">today.json</a> e <a href="/tomorrow.json">tomorrow.json</a> e dão a janela de 3 horas seguidas mais barata (<code>cheap_window</code>) e mais cara (<code>dear_window</code>). Preço OMIE em bruto, sem margens.</p>
+<p>Projeto independente: não é uma integração oficial do Home Assistant nem do hass_omie, e não têm qualquer apoio deles.</p>
+<h2>Hoje (today.json)</h2>
+<pre><code>__Y1__</code></pre>
+<h2>Amanhã (tomorrow.json)</h2>
+<pre><code>__Y2__</code></pre>
+<h2>Notas</h2>
+<ul>
+<li><strong>Quando aparece amanhã:</strong> a OMIE publica por volta das 13:00–14:20 (hora de Madrid); o site é reconstruído às __S__ UTC. Antes disso <code>tomorrow.json</code> tem <code>"available": false</code>, ou seja, ainda não saiu, e os campos das janelas não existem — os sensores ficam <code>unavailable</code>.</li>
+<li><strong>scan_interval:</strong> 1800 segundos (30 min) é o mínimo que recomendamos; os dados mudam no máximo algumas vezes por dia.</li>
+<li><strong>Campos:</strong> <code>date</code>, <code>available</code>, <code>cheap_window.hours</code> (por exemplo «10:00–13:00», hora de Lisboa), <code>cheap_window.avg_eur_mwh</code>, <code>dear_window.hours</code>, <code>stats.avg</code>, <code>stats.min</code>, <code>stats.max</code>.</li>
+<li><strong>Fonte:</strong> OMIE, ficheiro <code>marginalpdbcpt_AAAAMMDD.1</code>, coluna de Portugal. Valores em bruto em €/MWh (hora = média de quatro quartos de hora), sem redes, impostos nem margem do comercializador.</li>
+<li>Não é aconselhamento tarifário nem financeiro.</li>
+</ul></section>
+<section id="en" lang="en"><h2>Home Assistant: cheapest and dearest window of the day</h2>
+<p>Two copy-paste <code>rest</code> sensors reading <code>today.json</code> and <code>tomorrow.json</code> (YAML above) for the cheapest (<code>cheap_window</code>) and dearest (<code>dear_window</code>) run of 3 consecutive hours. Raw OMIE price, no markups.</p>
+<p>Independent project: not an official Home Assistant or hass_omie integration, and not endorsed by either.</p>
+<ul>
+<li><strong>When tomorrow appears:</strong> OMIE publishes around 13:00–14:20 Madrid time; the site rebuilds at __S__ UTC. Until then <code>tomorrow.json</code> says <code>"available": false</code> (not out yet) and has no window fields, so the sensors show <code>unavailable</code>.</li>
+<li><strong>scan_interval:</strong> 1800 seconds (30 min) is the minimum we ask for; the data changes a few times a day at most.</li>
+<li><strong>Source:</strong> OMIE file <code>marginalpdbcpt_YYYYMMDD.1</code>, Portugal column. Raw prices in EUR/MWh (an hour = mean of four quarter-hours), excluding grid fees, taxes and supplier margin. Hours are Lisbon time.</li>
+<li>Not tariff or financial advice.</li>
+</ul></section>"""
+    ha = ha.replace("__Y1__", esc(YAML1)).replace("__Y2__", esc(YAML2)).replace("__S__", ", ".join(SCHEDULE_UTC))
+    write(PUBLIC_DIR / "ha" / "index.html", page("Home Assistant — " + SITE_NAME, ha, built, SITE_BASE + "/ha/"))
 
     brand = f"""<section lang="pt"><h1>Marca / Brand</h1>
 <p>Avatar do site e dos canais. Dois desenhos de geometria simples, legíveis num círculo de 48 px, sem texto. Escolhido: <strong>A</strong>.</p>
@@ -669,6 +700,7 @@ def static_pages(built: dt.datetime) -> None:
 ## Pages
 - {SITE_BASE}/ — tomorrow (or today if OMIE has not published yet), PT then EN
 - {SITE_BASE}/d/ — archive index
+- {SITE_BASE}/ha/ — copy-paste Home Assistant REST sensors for the cheapest and dearest window (today.json, tomorrow.json), PT+EN
 - {SITE_BASE}/legal/ — responsible party, source, license, no tracking
 """)
 
@@ -803,7 +835,7 @@ def feed(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) 
            f"<description>{esc(T['en']['lead'])} Made by AI agents; responsible: {esc(RESPONSIBLE)}.</description><language>pt</language>"
            f"<lastBuildDate>{built:%a, %d %b %Y %H:%M:%S} +0000</lastBuildDate>{''.join(items)}</channel></rss>")
     write(PUBLIC_DIR / "feed.xml", xml)
-    urls = [SITE_BASE + "/", SITE_BASE + "/d/", SITE_BASE + "/legal/", SITE_BASE + "/brand/"] + [f"{SITE_BASE}/d/{d.isoformat()}/" for d in sorted(days)]
+    urls = [SITE_BASE + "/", SITE_BASE + "/d/", SITE_BASE + "/ha/", SITE_BASE + "/legal/", SITE_BASE + "/brand/"] + [f"{SITE_BASE}/d/{d.isoformat()}/" for d in sorted(days)]
     write(PUBLIC_DIR / "sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
           + "".join(f"<url><loc>{u}</loc></url>" for u in urls) + "</urlset>")
 

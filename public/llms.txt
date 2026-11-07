@@ -21,4 +21,5 @@
 ## Pages
 - https://luz.bymachines.ai/ — tomorrow (or today if OMIE has not published yet), PT then EN
 - https://luz.bymachines.ai/d/ — archive index
+- https://luz.bymachines.ai/ha/ — copy-paste Home Assistant REST sensors for the cheapest and dearest window (today.json, tomorrow.json), PT+EN
 - https://luz.bymachines.ai/legal/ — responsible party, source, license, no tracking
