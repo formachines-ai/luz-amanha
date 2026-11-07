@@ -360,8 +360,8 @@ HOUR23_ROW_NOTE = {"pt": "publicado amanhã pela OMIE", "en": "published by OMIE
 
 def hours_table(hours: list[dict], st: dict, tariff: dict, lang: str) -> str:
     cw, dw = st.get("cheap_window"), st.get("dear_window")
-    head = {"pt": ("Hora", "€/MWh (OMIE PT)", "€/kWh grossista (energia)", "Estimativa €/kWh"),
-            "en": ("Hour", "€/MWh (OMIE PT)", "€/kWh wholesale (energy)", "Estimate €/kWh")}[lang]
+    head = {"pt": ("Hora de Lisboa / Lisbon time", "€/MWh (OMIE PT)", "€/kWh grossista (energia)", "Estimativa €/kWh"),
+            "en": ("Hora de Lisboa / Lisbon time", "€/MWh (OMIE PT)", "€/kWh wholesale (energy)", "Estimate €/kWh")}[lang]
     cols = head[:3] + ((head[3],) if tariff.get("enabled") else ())
     out = ["<table class=\"hours\"><thead><tr>" + "".join(f"<th>{esc(c)}</th>" for c in cols) + "</tr></thead><tbody>"]
     for i, x in enumerate(hours):
@@ -394,7 +394,7 @@ T = {
         "night": "Noite 00:00–06:00", "night_avg": "média", "night_cheap": "janela mais barata", "night_none": "sem dados",
         "avg": "Média do dia", "avg_part": "Média das horas disponíveis",
         "incomplete": "Dados para {n} de {m} horas; falta {missing} (a OMIE publica amanhã). Janelas e média usam só as horas conhecidas.",
-        "tz": "Horas de Portugal continental (Europe/Lisbon).",
+        "tz": "Horas de Portugal continental (Europe/Lisbon). OMIE usa hora de Madrid (CET), uma hora à frente; aqui as horas são de Lisboa.",
         "cmp_basis": "Comparações: médias por hora de Lisboa (horas disponíveis) de cada dia, a mesma base da média acima.",
         "vs_yday": "vs. ontem", "vs_week": "vs. média dos últimos 7 dias",
         "hour23": "A hora 23:00 só fica disponível no dia seguinte (o OMIE publica em hora de Espanha).",
@@ -426,7 +426,7 @@ T = {
         "night": "Night 00:00–06:00", "night_avg": "average", "night_cheap": "cheapest window", "night_none": "no data",
         "avg": "Day average", "avg_part": "Average of the available hours",
         "incomplete": "Data for {n} of {m} hours; {missing} is missing (OMIE publishes it tomorrow). Windows and average use only the known hours.",
-        "tz": "Hours in mainland Portugal time (Europe/Lisbon).",
+        "tz": "Hours in mainland Portugal time (Europe/Lisbon). OMIE uses Madrid time (CET), one hour ahead; hours here are Lisbon time.",
         "cmp_basis": "Comparisons: averages of Lisbon hours (available hours) for each day, the same basis as the average above.",
         "vs_yday": "vs. yesterday", "vs_week": "vs. last 7 days average",
         "hour23": "The 23:00 hour becomes available the next day (OMIE publishes in Spanish time).",
@@ -661,6 +661,7 @@ def static_pages(built: dt.datetime) -> None:
 
 ## Facts about the data
 - Source: OMIE public file marginalpdbcpt_YYYYMMDD.1 (https://www.omie.es/), column "price Portugal". 96 quarter-hour periods in CET/CEST, averaged per Lisbon hour.
+- Hours are Lisbon time. OMIE files use Madrid time (CET), one hour ahead, so the Lisbon 23:00 of day D is the mean of the first 4 quarter-hours of the Portugal column in the file for D+1; null (missing_reason needs_next_day_omie_file) until that file exists, never interpolated.
 - OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15, 13:45, 14:30 and 16:00 UTC.
 - The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
