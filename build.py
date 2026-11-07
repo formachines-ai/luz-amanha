@@ -807,9 +807,10 @@ def feed(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) 
           + "".join(f"<url><loc>{u}</loc></url>" for u in urls) + "</urlset>")
 
 
-def build(target: dt.date, offline: bool) -> int:
-    built = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-    today = dt.datetime.now(DISPLAY_TZ).date()
+def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int:
+    """`now` (aware datetime) is the build time; default = the clock. today = Europe/Lisbon calendar date of `now`."""
+    built = (now or dt.datetime.now(dt.timezone.utc)).astimezone(dt.timezone.utc).replace(microsecond=0)
+    today = built.astimezone(DISPLAY_TZ).date()
     tariff = load_tariff()
     log.info("build start target=%s today(Lisbon)=%s offline=%s tariff_enabled=%s", target, today, offline, tariff.get("enabled"))
 
@@ -913,7 +914,7 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO, format=LOG_FORMAT, stream=sys.stderr)
     if a.selftest:
         return selftest()
-    target = dt.date.fromisoformat(a.date) if a.date else dt.datetime.now(DISPLAY_TZ).date() + dt.timedelta(days=1)
+    target = dt.date.fromisoformat(a.date) if a.date else dt.datetime.now(DISPLAY_TZ).date() + dt.timedelta(days=1)  # Lisbon date at build time
     return build(target, offline=a.offline)
 
 
