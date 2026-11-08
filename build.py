@@ -861,6 +861,18 @@ def feed(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) 
           + "".join(f"<url><loc>{u}</loc></url>" for u in urls) + "</urlset>")
 
 
+def existing_available(day: dt.date, *names: str) -> dict | None:
+    """Offline keep-existing: already published JSON for exactly `day` with available:true, else None."""
+    for n in names:
+        try:
+            j = json.loads((PUBLIC_DIR / n).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(j, dict) and j.get("date") == day.isoformat() and j.get("available") is True and j.get("hours"):
+            return j
+    return None
+
+
 def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int:
     """`now` (aware datetime) is the build time; default = the clock. today = Europe/Lisbon calendar date of `now`."""
     built = (now or dt.datetime.now(dt.timezone.utc)).astimezone(dt.timezone.utc).replace(microsecond=0)
@@ -888,6 +900,14 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     log.info("files available: %s", ", ".join(d.isoformat() for d in sorted(files)))
 
     have_target = target in files
+    kept: dict[dt.date, dict] = {}  # offline only: published days the cache lacks; never written over with available:false
+    if offline:
+        for d, name in ((target, "tomorrow.json"), (today, "today.json")):
+            if d not in files and d not in kept:
+                j = existing_available(d, name, f"d/{d.isoformat()}/index.json")
+                if j:
+                    kept[d] = j
+                    log.warning("offline: no cached OMIE file for %s; keeping existing available %s", d, name)
     main_day = target if have_target else today
     status = "status_ok" if have_target else "status_missing"
     if not have_target:
@@ -898,13 +918,16 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     per_day: dict[dt.date, dict] = {}
     for d in sorted(files):
         per_day[d] = render_day(d, files, tariff, built, None, index_page=False)
-    main = render_day(main_day, files, tariff, built, status, index_page=True)
+    keep_index = target in kept  # keep the published index.html (it shows the target day)
+    main = render_day(main_day, files, tariff, built, status, index_page=not keep_index)
     per_day[main_day] = main
-    tomorrow = per_day.get(target) or unavailable_json(target, built, FETCH_CODE.get(target), MISSING.get("next_attempt"), with_note=True)
+    tomorrow = per_day.get(target) or kept.get(target) or unavailable_json(target, built, FETCH_CODE.get(target), MISSING.get("next_attempt"), with_note=True)
     write(PUBLIC_DIR / "tomorrow.json", json.dumps(tomorrow, ensure_ascii=False, indent=1))
-    write(PUBLIC_DIR / "today.json", json.dumps(per_day.get(today) or unavailable_json(today, built), ensure_ascii=False, indent=1))
-    archive_index(list(files), per_day, built)
-    feed(list(files), per_day, built)
+    write(PUBLIC_DIR / "today.json", json.dumps(per_day.get(today) or kept.get(today) or unavailable_json(today, built), ensure_ascii=False, indent=1))
+    per_day.update({d: j for d, j in kept.items() if d not in per_day})
+    all_days = sorted(set(files) | set(kept))
+    archive_index(all_days, per_day, built)
+    feed(all_days, per_day, built)
     static_pages(built)
     write(PUBLIC_DIR / "build.json", json.dumps({
         "built_utc": built.isoformat(timespec="seconds"), "target_date": target.isoformat(), "target_available": have_target,
