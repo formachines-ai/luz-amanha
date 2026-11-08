@@ -25,7 +25,7 @@ idempotent; running it again only refreshes the "updated" timestamp.
 `python3 build.py --offline` (and any build whose download fails) reads `data/omie/<YYYY-MM-DD>.txt` first. If tomorrow's
 file is cached, `tomorrow.json`, `/` and `/d/<tomorrow>/` are built from it (`available: true`, same `hours[]` as the online
 build). `tomorrow.json` becomes `available: false` only when there is neither a cached nor a downloaded file for tomorrow;
-no price is ever carried over or invented. Test: `python3 -m unittest tests.test_offline_build`.
+no price is ever carried over or invented. Offline keep-existing: if the cache lacks the file for tomorrow (or today) but the committed `public/tomorrow.json`/`today.json` (or `d/<day>/index.json`) is `available: true` for that same date, offline mode keeps it, leaves `index.html` untouched and logs a warning instead of writing `available: false`; the online build is unchanged. Test: `python3 -m unittest tests.test_offline_keep`. Test: `python3 -m unittest tests.test_offline_build`.
 
 ## What to commit
 
