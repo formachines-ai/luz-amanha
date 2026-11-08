@@ -661,7 +661,7 @@ def static_pages(built: dt.datetime) -> None:
 <li>Not tariff or financial advice.</li>
 </ul></section>"""
     ha = ha.replace("__Y1__", esc(YAML1)).replace("__Y2__", esc(YAML2)).replace("__S__", ", ".join(SCHEDULE_UTC))
-    ha_desc = "Home Assistant REST sensors (YAML) for the cheapest and dearest 3-hour window of OMIE day-ahead electricity prices in Portugal, from today.json and tomorrow.json. PT + EN."
+    ha_desc = "Home Assistant REST sensors (YAML) for the cheapest and dearest 3-hour OMIE price window in Portugal, from today.json and tomorrow.json."
     ha_ld = {"@context": "https://schema.org", "@type": "WebPage", "name": "Home Assistant — " + SITE_NAME, "url": SITE_BASE + "/ha/",
              "description": ha_desc, "inLanguage": ["pt", "en"],
              "isPartOf": {"@type": "WebSite", "name": SITE_NAME, "url": SITE_BASE + "/"},
