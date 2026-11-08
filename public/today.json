@@ -5,7 +5,7 @@
  "unit": "EUR/MWh",
  "market": "OMIE day-ahead, Portugal",
  "source_file": "marginalpdbcpt_20261108.1",
- "built_utc": "2026-11-08T00:09:05+00:00",
+ "built_utc": "2026-11-08T13:15:02+00:00",
  "hours": [
   {
    "hour": "00:00",
@@ -171,17 +171,16 @@
   {
    "hour": "23:00",
    "start_utc": "2026-11-08T23:00:00+00:00",
-   "price_pt_eur_mwh": null,
-   "price_es_eur_mwh": null,
-   "energy_eur_kwh": null,
-   "missing_reason": "needs_next_day_omie_file"
+   "price_pt_eur_mwh": 169.85,
+   "price_es_eur_mwh": 169.85,
+   "energy_eur_kwh": 0.1699
   }
  ],
  "stats": {
-  "available": 23,
+  "available": 24,
   "hours_expected": 24,
-  "complete": false,
-  "avg": 198.3,
+  "complete": true,
+  "avg": 197.11,
   "min": 139.96,
   "max": 236.16,
   "cheap_window": {
@@ -212,8 +211,8 @@
   "yesterday_avg": 232.03,
   "week_avg": 217.0,
   "week_days": 7,
-  "vs_yesterday": -14.5,
-  "vs_week": -8.6,
+  "vs_yesterday": -15.0,
+  "vs_week": -9.2,
   "basis": "Lisbon-hour averages over available hours (yesterday_avg, week_avg, vs_*); day_avg_file = OMIE file day, Madrid time"
  },
  "cheap_window": {
