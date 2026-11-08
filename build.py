@@ -540,12 +540,13 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     return "".join(p)
 
 
-def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: str = "pt", desc: str = "", jsonld: dict | None = None, og_title: str = "", og_desc: str = "") -> str:
+def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: str = "pt", desc: str = "", jsonld: dict | None = None, og_title: str = "", og_desc: str = "", hreflang: bool = False) -> str:
     t = T["pt"]
     og_t = og_title or title
     og_d = og_desc or desc or T['en']['lead']
     d_ = desc or T['en']['lead']
     ld = ('\n<script type="application/ld+json">' + json.dumps(jsonld, ensure_ascii=False).replace("</", "<\\/") + "</script>") if jsonld else ""
+    hl = "".join(f'\n<link rel="alternate" hreflang="{h}" href="{esc(canonical + a)}">' for h, a in (("pt", ""), ("en", "#en"), ("x-default", ""))) if hreflang else ""
     return f"""<!DOCTYPE html>
 <html lang="{lang_first}">
 <head>
@@ -562,7 +563,7 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 <meta name="twitter:description" content="{esc(og_d)}">
 <meta property="og:site_name" content="{esc(SITE_NAME)}">
 <link rel="canonical" href="{esc(canonical)}">
-<link rel="alternate" type="application/rss+xml" title="{esc(SITE_NAME)}" href="{SITE_BASE}/feed.xml">
+<link rel="alternate" type="application/rss+xml" title="{esc(SITE_NAME)}" href="{SITE_BASE}/feed.xml">{hl}
 <link rel="icon" type="image/svg+xml" href="/brand/avatar.svg">
 <link rel="stylesheet" href="/style.css">{ld}
 </head>
@@ -660,7 +661,12 @@ def static_pages(built: dt.datetime) -> None:
 <li>Not tariff or financial advice.</li>
 </ul></section>"""
     ha = ha.replace("__Y1__", esc(YAML1)).replace("__Y2__", esc(YAML2)).replace("__S__", ", ".join(SCHEDULE_UTC))
-    write(PUBLIC_DIR / "ha" / "index.html", page("Home Assistant — " + SITE_NAME, ha, built, SITE_BASE + "/ha/"))
+    ha_desc = "Home Assistant REST sensors (YAML) for the cheapest and dearest 3-hour window of OMIE day-ahead electricity prices in Portugal, from today.json and tomorrow.json. PT + EN."
+    ha_ld = {"@context": "https://schema.org", "@type": "WebPage", "name": "Home Assistant — " + SITE_NAME, "url": SITE_BASE + "/ha/",
+             "description": ha_desc, "inLanguage": ["pt", "en"],
+             "isPartOf": {"@type": "WebSite", "name": SITE_NAME, "url": SITE_BASE + "/"},
+             "publisher": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"}}
+    write(PUBLIC_DIR / "ha" / "index.html", page("Home Assistant — " + SITE_NAME, ha, built, SITE_BASE + "/ha/", desc=ha_desc, jsonld=ha_ld, hreflang=True))
 
     brand = f"""<section lang="pt"><h1>Marca / Brand</h1>
 <p>Avatar do site e dos canais. Dois desenhos de geometria simples, legíveis num círculo de 48 px, sem texto. Escolhido: <strong>A</strong>.</p>
