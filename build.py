@@ -873,6 +873,13 @@ def existing_available(day: dt.date, *names: str) -> dict | None:
     return None
 
 
+def check_rollover(today: dt.date) -> None:
+    """Self-check: public/today.json must carry the Lisbon date at build time, else fail loudly (T-0102)."""
+    got = json.loads((PUBLIC_DIR / "today.json").read_text(encoding="utf-8")).get("date")
+    if got != today.isoformat():
+        raise SystemExit(f"FATAL: public/today.json date {got} != Lisbon date {today.isoformat()} at build time")
+
+
 def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int:
     """`now` (aware datetime) is the build time; default = the clock. today = Europe/Lisbon calendar date of `now`."""
     built = (now or dt.datetime.now(dt.timezone.utc)).astimezone(dt.timezone.utc).replace(microsecond=0)
@@ -924,6 +931,7 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     tomorrow = per_day.get(target) or kept.get(target) or unavailable_json(target, built, FETCH_CODE.get(target), MISSING.get("next_attempt"), with_note=True)
     write(PUBLIC_DIR / "tomorrow.json", json.dumps(tomorrow, ensure_ascii=False, indent=1))
     write(PUBLIC_DIR / "today.json", json.dumps(per_day.get(today) or kept.get(today) or unavailable_json(today, built), ensure_ascii=False, indent=1))
+    check_rollover(today)
     per_day.update({d: j for d, j in kept.items() if d not in per_day})
     all_days = sorted(set(files) | set(kept))
     archive_index(all_days, per_day, built)
