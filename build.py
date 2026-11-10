@@ -603,10 +603,33 @@ def unavailable_json(day: dt.date, built: dt.datetime, code: int | None = None, 
     """JSON shape when a day has no OMIE data: no prices, windows or hours are invented."""
     d: dict = {"date": day.isoformat(), "available": False}
     if with_note:
-        d.update(note=("not published by OMIE (HTTP 404)" if code == 404 else "no file for this date at the last attempt"),
-                 last_attempt=built.isoformat(timespec="seconds"), last_attempt_http=code, next_attempt_utc=next_attempt)
+        at = built.isoformat(timespec="seconds")
+        if code is None:
+            prev = _last_online_attempt(day)
+            if prev:  # --offline rebuild: keep the evidence of the last online fetch
+                d.update(note=prev["note"], last_attempt=prev["last_attempt"], last_attempt_http=prev["last_attempt_http"], next_attempt_utc=next_attempt)
+                d.update(built_utc=at, timezone="Europe/Lisbon", disclosure=DISCLOSURE)
+                return d
+            note = "no file for this date at the last attempt"
+        else:
+            url = OMIE_URL.format(parent=OMIE_PARENT, ymd=day.strftime("%Y%m%d"), version=OMIE_VERSION)
+            what = "not published by OMIE" if code == 404 else "OMIE fetch failed"
+            note = f"{what} (HTTP {code}) at online fetch {at} UTC: {url}"
+        d.update(note=note, last_attempt=at, last_attempt_http=code, next_attempt_utc=next_attempt)
     d.update(built_utc=built.isoformat(timespec="seconds"), timezone="Europe/Lisbon", disclosure=DISCLOSURE)
     return d
+
+
+def _last_online_attempt(day: dt.date) -> dict | None:
+    """note/last_attempt of the last ONLINE fetch, from the committed public/tomorrow.json (same date, unavailable, http status set)."""
+    try:
+        j = json.loads((PUBLIC_DIR / "tomorrow.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if (isinstance(j, dict) and j.get("date") == day.isoformat() and j.get("available") is False
+            and j.get("last_attempt_http") is not None and j.get("note") and j.get("last_attempt")):
+        return {k: j[k] for k in ("note", "last_attempt", "last_attempt_http")}
+    return None
 
 
 def write(path: Path, text: str) -> None:
