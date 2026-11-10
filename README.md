@@ -18,6 +18,8 @@ the server only publishes the committed `public/` directory (`git pull`). Exit c
 today; 2 = neither available (index still written, says so).
 
 Schedule (server cron, UTC): `13:15`, `13:45`, `14:30` and `16:00` after OMIE publishes, plus `00:05` Europe/Lisbon (rollover: `today.json`/`index.html` move to the new Lisbon day; `today` = the Lisbon calendar date at build time, and the build exits with an error if `today.json.date` differs) and `07:00` UTC for the morning post. A build is
+
+**Note (T-0107):** the 00:05 Lisbon rollover cron is not confirmed to exist; until it does, run `python3 build.py --offline` (or the normal build) by hand after Lisbon midnight, otherwise `today.json` goes stale. `index.html` carries a static PT+EN line with the build date of the "today" data and a link to `/d/<date>/`.
 idempotent; running it again only refreshes the "updated" timestamp.
 
 ## Offline rebuild

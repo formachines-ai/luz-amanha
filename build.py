@@ -790,6 +790,9 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     vote_pages(day, built)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.json", json.dumps(data, ensure_ascii=False, indent=1))
     if index_page:
+        bd, td = built.date().isoformat(), built.astimezone(DISPLAY_TZ).date().isoformat()
+        body += (f'\n<p class="note stale-note">Dados de hoje gerados em {bd}; se esta data não for hoje, veja <a href="/d/{td}/">/d/{td}/</a>. '
+                 f'<br>Today\'s data built on {bd}; if this is not today, see <a href="/d/{td}/">/d/{td}/</a>.</p>')
         write(PUBLIC_DIR / "index.html", page(title, body, built, SITE_BASE + "/", desc=desc, jsonld=site_ld, og_title=og_title, og_desc=og_desc))
     return data
 
