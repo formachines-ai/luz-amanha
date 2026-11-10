@@ -130,3 +130,7 @@ on 02.11 returned 404; the exact endpoint is unknown) and ENTSO-E Transparency (
 - Do not add dependencies, a JS bundle, analytics, or a form. Do not change the address of an existing page.
 
 License: site content CC BY 4.0; data © OMIE.
+
+## Finding T-0117 (2026-11-10): OMIE had not published 2026-11-11
+
+Checked 2026-11-10 17:10 UTC (also seen by the 14:30 and 16:00 UTC builds): `GET https://www.omie.es/es/file-download?parents=marginalpdbcpt&filename=marginalpdbcpt_20261111.1` -> **HTTP 404** (HTML body, ~27 KB). Same request for `marginalpdbcpt_20261110.1` -> HTTP 200 (2679 bytes), so the URL form, date format and file name in `build.py` are correct; `/en/` path and a browser User-Agent also give 404. The file simply did not exist yet. No price was copied or interpolated: `tomorrow.json` says `available:false`, `last_attempt_http:404`. Retry: every build (13:15, 13:45, 14:30, 16:00 UTC) re-requests every missing day, so the first build after OMIE publishes picks the file up; run `python3 build.py` by hand once it exists.
