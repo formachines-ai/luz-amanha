@@ -749,6 +749,28 @@ def comparison(day: dt.date, files: dict[dt.date, dict]) -> dict:
     return out
 
 
+NAV_DAYS: list[dt.date] = []  # every dated page that exists (set in build before rendering); used for prev/next and recent links
+
+
+def day_nav(day: dt.date) -> str:
+    """Plain prev/next links between existing dated pages (PT+EN)."""
+    prev = max((d for d in NAV_DAYS if d < day), default=None)
+    nxt = min((d for d in NAV_DAYS if d > day), default=None)
+    parts = []
+    if prev:
+        parts.append(f'<a href="/d/{prev.isoformat()}/" rel="prev">← Dia anterior / Previous day: {prev:%d.%m.%Y}</a>')
+    if nxt:
+        parts.append(f'<a href="/d/{nxt.isoformat()}/" rel="next">Dia seguinte / Next day: {nxt:%d.%m.%Y} →</a>')
+    parts.append('<a href="/d/">Arquivo / Archive</a>')
+    return '<p class="note daynav">' + " · ".join(parts) + "</p>\n"
+
+
+def recent_days_html() -> str:
+    rec = sorted(NAV_DAYS, reverse=True)[:7]
+    links = " · ".join(f'<a href="/d/{d.isoformat()}/">{d:%d.%m.%Y}</a>' for d in rec)
+    return (f'\n<p class="note recent-days">Últimos dias / Recent days: {links} · <a href="/d/">Arquivo completo / Full archive</a></p>')
+
+
 def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, status: str | None, index_page: bool) -> dict:
     hours = lisbon_hours(day, files)
     st = stats(hours)
@@ -784,7 +806,7 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
               "isBasedOn": {"@type": "Dataset", "name": "OMIE marginalpdbcpt day-ahead market results", "url": "https://www.omie.es/"},
               "distribution": {"@type": "DataDownload", "encodingFormat": "application/json",
                                "contentUrl": f"{SITE_BASE}/d/{day.isoformat()}/index.json"}}
-    html_text = page(title, day_body, built, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld, og_title=og_title, og_desc=og_desc)
+    html_text = page(title, day_nav(day) + day_body, built, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld, og_title=og_title, og_desc=og_desc)
     data = day_json(day, hours, st, cmp, tariff, built, src)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.html", html_text)
     vote_pages(day, built)
@@ -793,6 +815,7 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
         bd, td = built.date().isoformat(), built.astimezone(DISPLAY_TZ).date().isoformat()
         body += (f'\n<p class="note stale-note">Dados de hoje gerados em {bd}; se esta data não for hoje, veja <a href="/d/{td}/">/d/{td}/</a>. '
                  f'<br>Today\'s data built on {bd}; if this is not today, see <a href="/d/{td}/">/d/{td}/</a>.</p>')
+        body += recent_days_html()
         write(PUBLIC_DIR / "index.html", page(title, body, built, SITE_BASE + "/", desc=desc, jsonld=site_ld, og_title=og_title, og_desc=og_desc))
     return data
 
@@ -859,9 +882,9 @@ def feed(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) 
            f"<description>{esc(T['en']['lead'])} Made by AI agents; responsible: {esc(RESPONSIBLE)}.</description><language>pt</language>"
            f"<lastBuildDate>{built:%a, %d %b %Y %H:%M:%S} +0000</lastBuildDate>{''.join(items)}</channel></rss>")
     write(PUBLIC_DIR / "feed.xml", xml)
-    urls = [SITE_BASE + "/", SITE_BASE + "/d/", SITE_BASE + "/ha/", SITE_BASE + "/legal/", SITE_BASE + "/brand/"] + [f"{SITE_BASE}/d/{d.isoformat()}/" for d in sorted(days)]
+    urls = [SITE_BASE + "/", SITE_BASE + "/d/", SITE_BASE + "/ha/", SITE_BASE + "/legal/", SITE_BASE + "/brand/"] + [f"{SITE_BASE}/d/{d.isoformat()}/" for d in sorted(set(days) | set(NAV_DAYS))]
     write(PUBLIC_DIR / "sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-          + "".join(f"<url><loc>{u}</loc></url>" for u in urls) + "</urlset>")
+          + "".join(f"<url><loc>{u}</loc><lastmod>{built:%Y-%m-%d}</lastmod></url>" for u in urls) + "</urlset>")
 
 
 def existing_available(day: dt.date, *names: str) -> dict | None:
@@ -926,6 +949,13 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     if not have_target and today not in files:
         log.error("neither %s nor today %s available — index will say so", target, today)
     per_day: dict[dt.date, dict] = {}
+    on_disk = set()
+    for p in (PUBLIC_DIR / "d").glob("????-??-??/index.html"):
+        try:
+            on_disk.add(dt.date.fromisoformat(p.parent.name))
+        except ValueError:
+            pass
+    NAV_DAYS[:] = sorted(set(files) | set(kept) | on_disk | {main_day})
     for d in sorted(files):
         per_day[d] = render_day(d, files, tariff, built, None, index_page=False)
     keep_index = target in kept  # keep the published index.html (it shows the target day)
