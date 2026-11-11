@@ -445,7 +445,6 @@ T = {
         "nodata_all": "Sem dados para este dia.",
         "caveat": "Horas mais baratas no preço grossista OMIE. O efeito na sua fatura depende do contrato; num tarifário fixo o preço não muda de hora a hora.",
         "tg_line": "Todos os dias: às 07:00 UTC as horas mais baratas de hoje e por volta das 14:05 UTC as de amanhã (preço OMIE).",
-        "tg_when": "No Telegram: todos os dias por volta das 14:05 UTC as horas mais baratas e mais caras de amanhã, e às 07:00 UTC as de hoje.",
         "when_tomorrow": "Os preços de amanhã costumam aparecer aqui entre as {a} e as {b} UTC (hora de Lisboa no inverno).",
         "rss_note": "RSS: /feed.xml dá um item por dia, com os preços.",
         "en_link": "English below",
@@ -479,7 +478,6 @@ T = {
         "nodata_all": "No data for this day.",
         "caveat": "Cheapest hours in the OMIE wholesale price. The effect on your bill depends on your contract; on a fixed tariff the price does not change by the hour.",
         "tg_line": "Every day: today's cheapest hours at 07:00 UTC and tomorrow's at about 14:05 UTC (OMIE price).",
-        "tg_when": "On Telegram: every day at around 14:05 UTC the cheapest and most expensive hours for tomorrow, and at 07:00 UTC those for today.",
         "when_tomorrow": "Tomorrow's prices usually appear here between {a} and {b} UTC (Lisbon time in winter).",
         "rss_note": "RSS: /feed.xml gives one item per day, with the prices.",
         "en_link": "",
@@ -532,7 +530,6 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     p.append(f"<p class=\"lead\">{esc(t['lead'])}</p>")
     if status and not today_mode:
         p.append(f'<p class="status">{esc(status_text(lang, t, status))}</p>')
-    p.append(f'<p class="note tg-when"><a href="/go/telegram/">{esc(t["tg_when"])}</a></p>')
     p.append(f'<p class="note tg-line">{esc(t["tg_line"])} <a href="/go/telegram/">Telegram</a></p>')
     if not neutral:
         p.append(f'<p class="note when">{esc(t["when_tomorrow"].format(a=SCHEDULE_UTC[0], b=SCHEDULE_UTC[2]))}</p>')
