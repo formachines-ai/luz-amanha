@@ -5,7 +5,7 @@
  "unit": "EUR/MWh",
  "market": "OMIE day-ahead, Portugal",
  "source_file": "marginalpdbcpt_20261027.1",
- "built_utc": "2026-11-11T07:36:04+00:00",
+ "built_utc": "2026-11-11T09:12:34+00:00",
  "hours": [
   {
    "hour": "00:00",
@@ -101,8 +101,8 @@
   {
    "hour": "13:00",
    "start_utc": "2026-10-27T13:00:00+00:00",
-   "price_pt_eur_mwh": 113.3,
-   "price_es_eur_mwh": 113.3,
+   "price_pt_eur_mwh": 113.31,
+   "price_es_eur_mwh": 113.31,
    "energy_eur_kwh": 0.1133
   },
   {
@@ -186,7 +186,7 @@
   "cheap_window": {
    "start": 11,
    "end": 14,
-   "avg": 112.01
+   "avg": 112.02
   },
   "dear_window": {
    "start": 17,
@@ -217,7 +217,7 @@
  },
  "cheap_window": {
   "hours": "11:00–14:00",
-  "avg_eur_mwh": 112.01
+  "avg_eur_mwh": 112.02
  },
  "dear_window": {
   "hours": "17:00–20:00",
