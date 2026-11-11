@@ -4,8 +4,8 @@
  "timezone": "Europe/Lisbon",
  "unit": "EUR/MWh",
  "market": "OMIE day-ahead, Portugal",
- "source_file": "marginalpdbcpt_20261111.1",
- "built_utc": "2026-11-11T10:13:11+00:00",
+ "source_file": "marginalpdbc_20261111.1",
+ "built_utc": "2026-11-11T11:13:19+00:00",
  "hours": [
   {
    "hour": "00:00",
