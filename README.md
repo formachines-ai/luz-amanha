@@ -62,6 +62,7 @@ https://www.omie.es/es/file-download?parents=marginalpdbcpt&filename=marginalpdb
 The bracket form `parents%5B0%5D=` answers 302 to the form above; the form above answers 200
 `application/octet-stream`, `content-disposition: attachment; filename=marginalpdbcpt_20261103.1`.
 `marginalpdbc_YYYYMMDD.1` (the "España" folder) is byte-identical except for the header line.
+**Since 2026-11-11 (T-0135):** OMIE no longer publishes `marginalpdbcpt`; the source is `marginalpdbc_YYYYMMDD.1` (column 5 = Portugal), with `marginalpdbcpt` as the first choice whenever it exists. Each day's `source_file` (JSON) names the file actually parsed for that day, taken from the header line of the cached file.
 A day that is not published yet answers **HTTP 404 with an HTML body** (~27 KB) — the fetcher treats 404 and any
 non-OMIE body as "not published" and caches nothing.
 

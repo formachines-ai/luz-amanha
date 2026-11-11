@@ -88,7 +88,7 @@
 <li><strong>Quando aparece amanhã:</strong> a OMIE publica por volta das 13:00–14:20 (hora de Madrid); o site é reconstruído às 13:15, 13:45, 14:30, 16:00 UTC. Antes disso <code>tomorrow.json</code> tem <code>"available": false</code>, ou seja, ainda não saiu, e os campos das janelas não existem — os sensores ficam <code>unavailable</code>.</li>
 <li><strong>scan_interval:</strong> 1800 segundos (30 min) é o mínimo que recomendamos; os dados mudam no máximo algumas vezes por dia.</li>
 <li><strong>Campos:</strong> <code>date</code>, <code>available</code>, <code>cheap_window.hours</code> (por exemplo «10:00–13:00», hora de Lisboa), <code>cheap_window.avg_eur_mwh</code>, <code>dear_window.hours</code>, <code>stats.avg</code>, <code>stats.min</code>, <code>stats.max</code>.</li>
-<li><strong>Fonte:</strong> OMIE, ficheiro <code>marginalpdbcpt_AAAAMMDD.1</code>, coluna de Portugal. Valores em bruto em €/MWh (hora = média de quatro quartos de hora), sem redes, impostos nem margem do comercializador.</li>
+<li><strong>Fonte:</strong> OMIE, ficheiro <code>marginalpdbcpt_AAAAMMDD.1</code> ou, quando não existe, <code>marginalpdbc_AAAAMMDD.1</code> (coluna 5 = Portugal). Valores em bruto em €/MWh (hora = média de quatro quartos de hora), sem redes, impostos nem margem do comercializador.</li>
 <li>Não é aconselhamento tarifário nem financeiro.</li>
 </ul></section>
 <section id="en" lang="en"><h2>Home Assistant: cheapest and dearest window of the day</h2>
@@ -97,11 +97,11 @@
 <ul>
 <li><strong>When tomorrow appears:</strong> OMIE publishes around 13:00–14:20 Madrid time; the site rebuilds at 13:15, 13:45, 14:30, 16:00 UTC. Until then <code>tomorrow.json</code> says <code>"available": false</code> (not out yet) and has no window fields, so the sensors show <code>unavailable</code>.</li>
 <li><strong>scan_interval:</strong> 1800 seconds (30 min) is the minimum we ask for; the data changes a few times a day at most.</li>
-<li><strong>Source:</strong> OMIE file <code>marginalpdbcpt_YYYYMMDD.1</code>, Portugal column. Raw prices in EUR/MWh (an hour = mean of four quarter-hours), excluding grid fees, taxes and supplier margin. Hours are Lisbon time.</li>
+<li><strong>Source:</strong> OMIE file <code>marginalpdbcpt_YYYYMMDD.1</code> or, when it is not published, <code>marginalpdbc_YYYYMMDD.1</code> (column 5 = Portugal). Raw prices in EUR/MWh (an hour = mean of four quarter-hours), excluding grid fees, taxes and supplier margin. Hours are Lisbon time.</li>
 <li>Not tariff or financial advice.</li>
 </ul></section>
 </main>
-<footer><p>Feito por agentes de IA (agent-team) sem edição humana · responsável: Dmitriy, bymachines.ai · atualizado 2026-11-11 10:13 UTC</p>
-<p>Made by AI agents (agent-team) without human editing · responsible: Dmitriy, bymachines.ai · updated 2026-11-11 10:13 UTC · <a href="/legal/">legal</a> · <a href="/ha/">Home Assistant</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
+<footer><p>Feito por agentes de IA (agent-team) sem edição humana · responsável: Dmitriy, bymachines.ai · atualizado 2026-11-11 11:13 UTC</p>
+<p>Made by AI agents (agent-team) without human editing · responsible: Dmitriy, bymachines.ai · updated 2026-11-11 11:13 UTC · <a href="/legal/">legal</a> · <a href="/ha/">Home Assistant</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
 </body>
 </html>

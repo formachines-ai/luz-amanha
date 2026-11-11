@@ -129,7 +129,14 @@ def rebuilt_text(lang: str) -> str:
 
 
 def omie_filename(day: dt.date) -> str:
-    return f"{OMIE_PARENT}_{day:%Y%m%d}.{OMIE_VERSION}"
+    """Name of the OMIE file actually parsed for `day`: the header line of the cached file says which one it is."""
+    parent = OMIE_PARENT
+    p = cache_path(day)
+    if p.exists():
+        first = p.read_text(encoding="latin-1").lstrip().split(";", 1)[0].strip().lower()
+        if first == "marginalpdbc":
+            parent = "marginalpdbc"
+    return f"{parent}_{day:%Y%m%d}.{OMIE_VERSION}"
 
 
 def cache_path(day: dt.date) -> Path:
@@ -681,14 +688,14 @@ YAML2 = 'rest:\n  - resource: https://luz.bymachines.ai/tomorrow.json\n    scan_
 def static_pages(built: dt.datetime) -> None:
     legal = f"""<section lang="pt"><h1>Legal</h1>
 <p><strong>Responsável:</strong> {esc(RESPONSIBLE)}. Este site é feito e atualizado por agentes de IA (agent-team) sem edição humana; o responsável é uma pessoa.</p>
-<p><strong>Fonte dos dados:</strong> OMIE — Operador do Mercado Ibérico de Energia, ficheiros públicos do mercado diário (<code>marginalpdbcpt_AAAAMMDD.1</code>, preço marginal para Portugal, €/MWh). Os valores são reproduzidos sem alteração; a agregação por hora é a média das quatro quartos de hora.</p>
+<p><strong>Fonte dos dados:</strong> OMIE — Operador do Mercado Ibérico de Energia, ficheiros públicos do mercado diário (<code>marginalpdbcpt_AAAAMMDD.1</code> ou, quando este não é publicado, <code>marginalpdbc_AAAAMMDD.1</code>, coluna 5 = Portugal; €/MWh; o ficheiro usado em cada dia está em <code>source_file</code>). Os valores são reproduzidos sem alteração; a agregação por hora é a média das quatro quartos de hora.</p>
 <p><strong>Não é aconselhamento financeiro nem tarifário.</strong> O preço OMIE não é a sua fatura: não inclui redes, impostos, taxas nem a margem do comercializador. Qualquer valor marcado «estimativa» é uma aproximação com parcelas datadas e pode estar errado. Confirme sempre com o seu comercializador.</p>
 <p><strong>Privacidade:</strong> sem cookies, sem rastreio, sem formulários. O servidor guarda registos de acesso técnicos (endereço IP, user-agent) por um período limitado para contagem de visitas e segurança.</p>
 <p><strong>Licença:</strong> textos, gráficos e JSON deste site — <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Os dados de origem pertencem ao OMIE.</p>
 <p>Termos completos, contacto e política de dados: <a href="{LEGAL_UPSTREAM}">{LEGAL_UPSTREAM}</a>.</p></section>
 <section id="en" lang="en"><h2>Legal (EN)</h2>
 <p><strong>Responsible:</strong> {esc(RESPONSIBLE)}. Built and updated by AI agents (agent-team) without human editing; the responsible party is a person.</p>
-<p><strong>Data source:</strong> OMIE, the Iberian electricity market operator, public day-ahead files (<code>marginalpdbcpt_YYYYMMDD.1</code>, Portuguese marginal price, €/MWh). Values are reproduced unchanged; hourly values are the mean of the four quarter-hours.</p>
+<p><strong>Data source:</strong> OMIE, the Iberian electricity market operator, public day-ahead files (<code>marginalpdbcpt_YYYYMMDD.1</code> or, when that is not published, <code>marginalpdbc_YYYYMMDD.1</code>, column 5 = Portugal; €/MWh; the file used for each day is in <code>source_file</code>). Values are reproduced unchanged; hourly values are the mean of the four quarter-hours.</p>
 <p><strong>Not financial or tariff advice.</strong> The OMIE price is not your bill: it excludes grid fees, taxes, levies and supplier margin. Anything labelled "estimate" is an approximation with dated components and may be wrong. Always check with your supplier.</p>
 <p><strong>Privacy:</strong> no cookies, no tracking, no forms. The server keeps technical access logs (IP address, user agent) for a limited time for visit counting and security.</p>
 <p><strong>License:</strong> site texts, charts and JSON — CC BY 4.0. Source data belongs to OMIE.</p>
@@ -707,7 +714,7 @@ def static_pages(built: dt.datetime) -> None:
 <li><strong>Quando aparece amanhã:</strong> a OMIE publica por volta das 13:00–14:20 (hora de Madrid); o site é reconstruído às __S__ UTC. Antes disso <code>tomorrow.json</code> tem <code>"available": false</code>, ou seja, ainda não saiu, e os campos das janelas não existem — os sensores ficam <code>unavailable</code>.</li>
 <li><strong>scan_interval:</strong> 1800 segundos (30 min) é o mínimo que recomendamos; os dados mudam no máximo algumas vezes por dia.</li>
 <li><strong>Campos:</strong> <code>date</code>, <code>available</code>, <code>cheap_window.hours</code> (por exemplo «10:00–13:00», hora de Lisboa), <code>cheap_window.avg_eur_mwh</code>, <code>dear_window.hours</code>, <code>stats.avg</code>, <code>stats.min</code>, <code>stats.max</code>.</li>
-<li><strong>Fonte:</strong> OMIE, ficheiro <code>marginalpdbcpt_AAAAMMDD.1</code>, coluna de Portugal. Valores em bruto em €/MWh (hora = média de quatro quartos de hora), sem redes, impostos nem margem do comercializador.</li>
+<li><strong>Fonte:</strong> OMIE, ficheiro <code>marginalpdbcpt_AAAAMMDD.1</code> ou, quando não existe, <code>marginalpdbc_AAAAMMDD.1</code> (coluna 5 = Portugal). Valores em bruto em €/MWh (hora = média de quatro quartos de hora), sem redes, impostos nem margem do comercializador.</li>
 <li>Não é aconselhamento tarifário nem financeiro.</li>
 </ul></section>
 <section id="en" lang="en"><h2>Home Assistant: cheapest and dearest window of the day</h2>
@@ -716,7 +723,7 @@ def static_pages(built: dt.datetime) -> None:
 <ul>
 <li><strong>When tomorrow appears:</strong> OMIE publishes around 13:00–14:20 Madrid time; the site rebuilds at __S__ UTC. Until then <code>tomorrow.json</code> says <code>"available": false</code> (not out yet) and has no window fields, so the sensors show <code>unavailable</code>.</li>
 <li><strong>scan_interval:</strong> 1800 seconds (30 min) is the minimum we ask for; the data changes a few times a day at most.</li>
-<li><strong>Source:</strong> OMIE file <code>marginalpdbcpt_YYYYMMDD.1</code>, Portugal column. Raw prices in EUR/MWh (an hour = mean of four quarter-hours), excluding grid fees, taxes and supplier margin. Hours are Lisbon time.</li>
+<li><strong>Source:</strong> OMIE file <code>marginalpdbcpt_YYYYMMDD.1</code> or, when it is not published, <code>marginalpdbc_YYYYMMDD.1</code> (column 5 = Portugal). Raw prices in EUR/MWh (an hour = mean of four quarter-hours), excluding grid fees, taxes and supplier margin. Hours are Lisbon time.</li>
 <li>Not tariff or financial advice.</li>
 </ul></section>"""
     ha = ha.replace("__Y1__", esc(YAML1)).replace("__Y2__", esc(YAML2)).replace("__S__", ", ".join(SCHEDULE_UTC))
@@ -771,7 +778,7 @@ def static_pages(built: dt.datetime) -> None:
 - {SITE_BASE}/build.json — when the site was last built and which OMIE files it used
 
 ## Facts about the data
-- Source: OMIE public file marginalpdbcpt_YYYYMMDD.1 (https://www.omie.es/), column "price Portugal". 96 quarter-hour periods in CET/CEST, averaged per Lisbon hour.
+- Source: OMIE public file. The Portugal price comes from marginalpdbcpt_YYYYMMDD.1 or, when that is not published (since 2026-11-11), from column 5 of marginalpdbc_YYYYMMDD.1 (https://www.omie.es/). The file actually used for each day is in source_file of that day's JSON. 96 quarter-hour periods in CET/CEST, averaged per Lisbon hour.
 - Hours are Lisbon time. OMIE files use Madrid time (CET), one hour ahead, so the Lisbon 23:00 of day D is the mean of the first 4 quarter-hours of the Portugal column in the file for D+1; null (missing_reason needs_next_day_omie_file) until that file exists, never interpolated.
 - OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15, 13:45, 14:30 and 16:00 UTC.
 - The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
@@ -862,7 +869,7 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
               "inLanguage": ["pt", "en"],
               "creator": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"},
               "publisher": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"},
-              "isBasedOn": {"@type": "Dataset", "name": "OMIE marginalpdbcpt day-ahead market results", "url": "https://www.omie.es/"},
+              "isBasedOn": {"@type": "Dataset", "name": "OMIE marginalpdbcpt / marginalpdbc day-ahead market results", "url": "https://www.omie.es/"},
               "distribution": {"@type": "DataDownload", "encodingFormat": "application/json",
                                "contentUrl": f"{SITE_BASE}/d/{day.isoformat()}/index.json"}}
     html_text = page(title, day_nav(day) + day_body, built, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld, og_title=og_title, og_desc=og_desc)
