@@ -89,24 +89,39 @@ def status_text(lang: str, t: dict, status: str) -> str:
     d = m.get("date")
     dd = f"{d:%d.%m}" if d else "?"
     la = m.get("last_attempt")
+    if la is not None and la.tzinfo:
+        la = la.astimezone(dt.timezone.utc)
     nxt = m.get("next_attempt")
     if lang == "pt":
         s = f"Ainda não temos os preços de {dd}."
         if la:
-            s += f" Última tentativa: {la:%d.%m} às {la:%H:%M} UTC;"
+            s += f" Última tentativa de consulta à OMIE: {la:%d.%m} às {la:%H:%M} UTC;"
         if m.get("code") == 404:
             s += " o OMIE ainda não publicou o ficheiro (HTTP 404);"
         if nxt:
             s += f" próxima tentativa: {nxt} UTC;"
-        return s.rstrip(";") + "; abaixo estão os preços de hoje." if s.endswith(";") else s + " Abaixo estão os preços de hoje."
+        s = s.rstrip(";") + "."
+        return s + " A tabela abaixo é de hoje, não de amanhã."
     s = f"We do not have the prices for {dd} yet."
     if la:
-        s += f" Last attempt: {la:%d.%m} at {la:%H:%M} UTC;"
+        s += f" Last attempt, OMIE request: {la:%d.%m} at {la:%H:%M} UTC;"
     if m.get("code") == 404:
         s += " OMIE has not published the file (HTTP 404);"
     if nxt:
         s += f" next attempt: {nxt} UTC;"
-    return s.rstrip(";") + "; below are today's prices." if s.endswith(";") else s + " Below are today's prices."
+    s = s.rstrip(";") + "."
+    return s + " The hourly table below is for today, not for tomorrow."
+
+
+def rebuilt_text(lang: str) -> str:
+    b = MISSING.get("built")
+    if b is None:
+        return ""
+    if b.tzinfo:
+        b = b.astimezone(dt.timezone.utc)
+    if lang == "pt":
+        return f"Página atualizada às {b:%H:%M} UTC ({b:%d.%m})."
+    return f"Page rebuilt at {b:%H:%M} UTC ({b:%d.%m})."
 
 
 def omie_filename(day: dt.date) -> str:
@@ -487,6 +502,8 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
         p.append('<p class="note en-jump"><a href="#en" lang="en">English</a></p>')
     if status and today_mode:
         p.append(f'<p class="status">{esc(status_text(lang, t, status))}</p>')
+        if rebuilt_text(lang):
+            p.append(f'<p class="note rebuilt">{esc(rebuilt_text(lang))}</p>')
     p.append(f"<p class=\"lead\">{esc(t['lead'])}</p>")
     if status and not today_mode:
         p.append(f'<p class="status">{esc(status_text(lang, t, status))}</p>')
@@ -968,7 +985,10 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     status = "status_ok" if have_target else "status_missing"
     if not have_target:
         nxt = next_slot(built)
-        MISSING.update(date=target, last_attempt=built, next_attempt=nxt, code=FETCH_CODE.get(target))
+        code = FETCH_CODE.get(target)
+        prev = _last_online_attempt(target) if code is None else None
+        la = built if code is not None else (dt.datetime.fromisoformat(prev["last_attempt"]) if prev else built)  # same value unavailable_json writes
+        MISSING.update(date=target, last_attempt=la, built=built, next_attempt=nxt, code=code if code is not None else (prev or {}).get("last_attempt_http"))
     if not have_target and today not in files:
         log.error("neither %s nor today %s available — index will say so", target, today)
     per_day: dict[dt.date, dict] = {}
