@@ -86,7 +86,7 @@ class OmieMissing(Exception):
 FETCH_CODE: dict = {}  # day -> HTTP status of the last real fetch ("error" on network failure)
 
 
-def status_text(lang: str, t: dict, status: str) -> str:
+def status_text(lang: str, t: dict, status: str, today_ok: bool = True) -> str:
     if status != "status_missing":
         return t[status]
     m = MISSING
@@ -105,7 +105,7 @@ def status_text(lang: str, t: dict, status: str) -> str:
         if nxt:
             s += f" próxima tentativa: {nxt} UTC;"
         s = s.rstrip(";") + "."
-        return s + " A tabela abaixo é de hoje, não de amanhã."
+        return s + (" A tabela abaixo é de hoje, não de amanhã." if today_ok else "")
     s = f"We do not have the prices for {dd} yet."
     if la:
         s += f" Last attempt, OMIE request: {la:%d.%m} at {la:%H:%M} UTC;"
@@ -114,7 +114,7 @@ def status_text(lang: str, t: dict, status: str) -> str:
     if nxt:
         s += f" next attempt: {nxt} UTC;"
     s = s.rstrip(";") + "."
-    return s + " The hourly table below is for today, not for tomorrow."
+    return s + (" The hourly table below is for today, not for tomorrow." if today_ok else "")
 
 
 def rebuilt_text(lang: str) -> str:
@@ -514,7 +514,10 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     if lang == "pt":
         p.append('<p class="note en-jump"><a href="#en" lang="en">English</a></p>')
     if status and today_mode:
-        p.append(f'<p class="status">{esc(status_text(lang, t, status))}</p>')
+        today_ok = bool(st.get("available"))
+        p.append(f'<p class="status">{esc(status_text(lang, t, status, today_ok))}</p>')
+        if not today_ok:
+            p.append(f'<p class="status today-empty">{esc(("Hoje, %s: sem preços OMIE publicados, por isso não há janela mais barata." if lang == "pt" else "Today, %s: no OMIE prices published, so there is no cheapest window.") % f"{day:%d.%m}")}</p>')
         if rebuilt_text(lang):
             p.append(f'<p class="note rebuilt">{esc(rebuilt_text(lang))}</p>')
     p.append(f"<p class=\"lead\">{esc(t['lead'])}</p>")
