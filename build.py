@@ -559,9 +559,16 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     cwn = st["cheap_window"]
     ntxt = (f"{fmt(na)} €/MWh" + ("" if nn == 6 else f" ({nn}/6 h)")) if na is not None else f"{t['night_none']} (0/6 h)"
     ntxt = f"{t['night_avg']} {ntxt}" if na is not None else ntxt
+    ncmp = ""
     if cwn:
-        ntxt += f" ({t['night_cheap']}: {window_text(hours, cwn)}, {t['night_avg']} {fmt(cwn['avg'])} €/MWh)"
-    p.append(f"<div class=\"night\"><dt>{esc(t['night'])}</dt><dd>{esc(ntxt)}</dd></div>")
+        wtxt = window_text(hours, cwn)
+        inside = int(hours[cwn["end"] - 1]["label"][:2]) <= 5
+        if lang == "pt":
+            ncmp = f"Para comparação, a janela mais barata entre todas as horas disponíveis é {wtxt}, " + ("dentro da noite." if inside else "fora da noite.")
+        else:
+            ncmp = f"For comparison, the cheapest window across all available hours is {wtxt}, " + ("inside the night period." if inside else "outside the night period.")
+        ncmp = f'<dd class="note night-compare">{esc(ncmp)}</dd>'
+    p.append(f"<div class=\"night\"><dt>{esc(t['night'])}</dt><dd>{esc(ntxt)}</dd>{ncmp}</div>")
     yd = cmp.get("vs_yesterday")
     wk = cmp.get("vs_week")
     p.append(f"<div><dt>{esc(t['avg_part'] if partial else t['avg'])}</dt><dd>{fmt(st['avg'])} €/MWh"
