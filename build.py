@@ -546,8 +546,15 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
         miss = ", ".join(x["label"] for x in hours if x["pt"] is None)
         p.append(f'<p class="note incomplete">{esc(t["incomplete"].format(n=st["available"], m=st["hours_expected"], missing=miss))}</p>')
     p.append(f'<p class="note">{esc(t["tz"])}</p>')
+    cwn0 = st["cheap_window"]
     p.append('<div class="windows"><dl class="kpi">')
-    p.append(f"<div><dt>{esc(t['cheap'])}</dt><dd class=\"g\">{esc(window_text(hours, st['cheap_window']))} · {fmt(st['cheap_window']['avg']) if st['cheap_window'] else '—'} €/MWh</dd></div>")
+    nl = ""
+    if cwn0 and cwn0["end"] <= 7:
+        wt = window_text(hours, cwn0).replace(":00", "") + "h"
+        nl = ("A janela mais barata deste dia (%s) é de madrugada; depois dela, veja as horas restantes na tabela." if lang == "pt"
+              else "This day's cheapest window (%s) is at night; after it, check the remaining hours in the table.") % wt
+        nl = f'<dd class="note night-window">{esc(nl)}</dd>'
+    p.append(f"<div><dt>{esc(t['cheap'])}</dt><dd class=\"g\">{esc(window_text(hours, st['cheap_window']))} · {fmt(st['cheap_window']['avg']) if st['cheap_window'] else '—'} €/MWh</dd>{nl}</div>")
     p.append(f"<div><dt>{esc(t['dear'])}</dt><dd class=\"r\">{esc(window_text(hours, st['dear_window']))} · {fmt(st['dear_window']['avg']) if st['dear_window'] else '—'} €/MWh</dd></div>")
     p.append(f"<div><dt>{esc(t['cheapest3'])}</dt><dd>{esc(', '.join(hours[i]['label'] for i in ch))}</dd></div>")
     p.append(f"<div><dt>{esc(t['dearest3'])}</dt><dd>{esc(', '.join(hours[i]['label'] for i in st['dearest_hours']))}</dd></div>")
