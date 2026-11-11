@@ -45,6 +45,10 @@ TELEGRAM_URL = "https://t.me/luz_amanha"   # real channel (owner created 2026-11
 #   https://www.omie.es/es/file-download?parents=marginalpdbcpt&filename=marginalpdbcpt_YYYYMMDD.1
 # `marginalpdbc` (Spain folder) carries the same body with a different header line.
 OMIE_PARENT = "marginalpdbcpt"
+# Fallback (owner 11.11): OMIE stopped publishing marginalpdbcpt after 20261110 (404 for 11.11 and later) while the
+# combined file marginalpdbc is published; its column 5 (index 4) is the Portuguese price — checked on the split days
+# 03–04.09 and 05–07.10.2026, where it equals marginalpdbcpt and differs from the Spanish column.
+OMIE_PARENTS = (OMIE_PARENT, "marginalpdbc")
 OMIE_URL = "https://www.omie.es/es/file-download?parents={parent}&filename={parent}_{ymd}.{version}"
 OMIE_VERSION = "1"
 OMIE_HEADER_PREFIX = "MARGINALPDBC"     # both MARGINALPDBCPT; and MARGINALPDBC;
@@ -149,30 +153,39 @@ def fetch_day(day: dt.date, offline: bool = False) -> str | None:
     if offline:
         log.info("offline: no cache for %s", day)
         return None
-    url = OMIE_URL.format(parent=OMIE_PARENT, ymd=f"{day:%Y%m%d}", version=OMIE_VERSION)
-    log.info("GET %s", url)
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    try:
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as r:
-            body = r.read()
-            ctype = r.headers.get("Content-Type", "")
-            status = r.status
-    except urllib.error.HTTPError as e:
-        FETCH_CODE[day] = e.code
-        log.info("OMIE %s -> HTTP %s (not published yet or wrong name)", omie_filename(day), e.code)
-        return None
-    except (urllib.error.URLError, TimeoutError, OSError) as e:
-        FETCH_CODE[day] = "error"
-        log.error("network error for %s: %s", day, e)
-        return None
-    FETCH_CODE[day] = status
-    text = body.decode("latin-1")
-    if status != 200 or "text/html" in ctype or not looks_like_omie(text):
-        log.info("OMIE %s -> %s %s, body is not an OMIE file (%d bytes)", omie_filename(day), status, ctype, len(body))
+    text = None
+    for parent in OMIE_PARENTS:
+        url = OMIE_URL.format(parent=parent, ymd=f"{day:%Y%m%d}", version=OMIE_VERSION)
+        fname = f"{parent}_{day:%Y%m%d}.{OMIE_VERSION}"
+        log.info("GET %s", url)
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        try:
+            with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as r:
+                body = r.read()
+                ctype = r.headers.get("Content-Type", "")
+                status = r.status
+        except urllib.error.HTTPError as e:
+            FETCH_CODE[day] = e.code
+            log.info("OMIE %s -> HTTP %s (not published yet or wrong name)", fname, e.code)
+            continue
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            FETCH_CODE[day] = "error"
+            log.error("network error for %s: %s", day, e)
+            return None
+        FETCH_CODE[day] = status
+        cand = body.decode("latin-1")
+        if status != 200 or "text/html" in ctype or not looks_like_omie(cand):
+            log.info("OMIE %s -> %s %s, body is not an OMIE file (%d bytes)", fname, status, ctype, len(body))
+            continue
+        if parent != OMIE_PARENT:
+            log.warning("OMIE %s missing; using the combined file %s (Portuguese price column)", omie_filename(day), fname)
+        text = cand
+        break
+    if text is None:
         return None
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     p.write_text(text, encoding="latin-1")
-    log.info("saved %s (%d bytes, %d data rows)", p, len(body), text.count("\n") - 2)
+    log.info("saved %s (%d bytes, %d data rows)", p, len(text), text.count("\n") - 2)
     return text
 
 

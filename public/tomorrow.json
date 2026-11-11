@@ -1,11 +1,11 @@
 {
  "date": "2026-11-12",
  "available": false,
- "note": "no file for this date at the last attempt",
- "last_attempt": "2026-11-11T02:11:35+00:00",
- "last_attempt_http": null,
+ "note": "not published by OMIE (HTTP 404) at online fetch 2026-11-11T07:36:04+00:00 UTC: https://www.omie.es/es/file-download?parents=marginalpdbcpt&filename=marginalpdbcpt_20261112.1",
+ "last_attempt": "2026-11-11T07:36:04+00:00",
+ "last_attempt_http": 404,
  "next_attempt_utc": "13:15",
- "built_utc": "2026-11-11T02:11:35+00:00",
+ "built_utc": "2026-11-11T07:36:04+00:00",
  "timezone": "Europe/Lisbon",
  "disclosure": "Made by AI agents (agent-team) without human editing; responsible: Dmitriy, bymachines.ai. License CC BY 4.0."
 }
