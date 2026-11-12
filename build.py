@@ -394,6 +394,21 @@ def svg_chart(hours: list[dict], st: dict) -> str:
 HOUR23_ROW_NOTE = {"pt": "publicado amanhã pela OMIE", "en": "published by OMIE tomorrow"}
 
 
+ZERONEG_LABEL = {"pt": "zero/negativo", "en": "zero/negative"}
+
+
+def zeroneg_line(hours: list[dict], lang: str) -> str:
+    hs = [x["label"][:2] for x in hours if x["pt"] is not None and x["pt"] <= 0]
+    if not hs:
+        return ""
+    n, lst = len(hs), ", ".join(hs)
+    if lang == "pt":
+        txt = f"{n} {'hora' if n == 1 else 'horas'} com preço OMIE ≤ 0 €/MWh: {lst} (preço grossista, não é a sua fatura)."
+    else:
+        txt = f"{n} {'hour' if n == 1 else 'hours'} with OMIE price ≤ 0 €/MWh: {lst} (wholesale price, not your bill)."
+    return f'<p class="note zeroneg-line">{esc(txt)}</p>'
+
+
 def hours_table(hours: list[dict], st: dict, tariff: dict, lang: str) -> str:
     cw, dw = st.get("cheap_window"), st.get("dear_window")
     head = {"pt": ("Hora de Lisboa / Lisbon time", "€/MWh (OMIE PT)", "€/kWh grossista (energia)", "Estimativa €/kWh"),
@@ -409,6 +424,9 @@ def hours_table(hours: list[dict], st: dict, tariff: dict, lang: str) -> str:
             ncols = len(cols) - 1
             out.append(f'<tr class="{cls} pending"><td>{cells[0]}</td><td colspan="{ncols}">{esc(HOUR23_ROW_NOTE[lang])}</td></tr>')
             continue
+        if x["pt"] is not None and x["pt"] <= 0:
+            cells[1] = f'{cells[1]} <strong class="zeroneg">{ZERONEG_LABEL[lang]}</strong>'
+            cls = (cls + " zeroneg-row").strip()
         out.append(f'<tr class="{cls}">' + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
     out.append("</tbody></table>")
     return "".join(out)
@@ -588,6 +606,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     else:
         p.append(f'<p class="note">{esc(t["est_off"])}</p>')
     p.append(f'<p class="note kwh-note">{esc(t["kwh_note"])}</p>')
+    p.append(zeroneg_line(hours, lang))
     p.append(hours_table(hours, st, tariff, lang))
     p.append(feedback_links(lang, day))
     p.append("</section>")
@@ -793,6 +812,7 @@ def static_pages(built: dt.datetime) -> None:
 - Hours are Lisbon time. OMIE files use Madrid time (CET), one hour ahead, so the Lisbon 23:00 of day D is the mean of the first 4 quarter-hours of the Portugal column in the file for D+1; null (missing_reason needs_next_day_omie_file) until that file exists, never interpolated.
 - OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15, 13:45, 14:30 and 16:00 UTC.
 - The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
+- A price of 0 or below (EUR/MWh) is a real OMIE value, not an error or a broken sensor; such hours are labelled zero/negative on the page.
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
 
 ## Pages
