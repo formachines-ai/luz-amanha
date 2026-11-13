@@ -1,8 +1,8 @@
 {
- "built_utc": "2026-11-13T13:15:02+00:00",
+ "built_utc": "2026-11-13T13:45:01+00:00",
  "target_date": "2026-11-14",
- "target_available": false,
- "index_shows": "2026-11-13",
+ "target_available": true,
+ "index_shows": "2026-11-14",
  "files": {
   "2026-10-26": "marginalpdbcpt_20261026.1",
   "2026-10-27": "marginalpdbcpt_20261027.1",
@@ -22,7 +22,8 @@
   "2026-11-10": "marginalpdbcpt_20261110.1",
   "2026-11-11": "marginalpdbc_20261111.1",
   "2026-11-12": "marginalpdbcpt_20261112.1",
-  "2026-11-13": "marginalpdbcpt_20261113.1"
+  "2026-11-13": "marginalpdbcpt_20261113.1",
+  "2026-11-14": "marginalpdbcpt_20261114.1"
  },
  "source": "https://www.omie.es/es/file-download?parents=marginalpdbcpt&filename=marginalpdbcpt_YYYYMMDD.1",
  "tariff_enabled": false,
