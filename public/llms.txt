@@ -4,6 +4,7 @@
 
 ## Machine-readable
 - https://luz.bymachines.ai/tomorrow.json — tomorrow (Lisbon calendar day), hours in Europe/Lisbon time, price_pt_eur_mwh per hour, cheap_window, dear_window, stats
+- Time fields: top-level timezone = Europe/Lisbon; each hours[] entry has start (ISO 8601 Lisbon time with UTC offset, e.g. 2026-11-16T10:00:00+00:00) and start_utc (the same instant in UTC, ISO 8601); hour is the Lisbon wall-clock label.
 - https://luz.bymachines.ai/today.json — today
 - Field definitions: cheapest_hours = the 3 cheapest single hours of the day (not necessarily consecutive); cheap_window and stats.cheap_window = the cheapest 3 consecutive hours (lowest average). The two can differ.
 - missing_reason: present only on an hours[] entry whose price_pt_eur_mwh is null (never on hours with a price). Values: needs_next_day_omie_file = the Lisbon hour 23:00 lies in the next day's OMIE file, not yet published; not_in_omie_file = any other hour absent from the OMIE files we hold. No price is ever estimated for these hours.
