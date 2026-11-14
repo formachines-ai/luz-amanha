@@ -1,7 +1,7 @@
 {
- "built_utc": "2026-11-13T23:10:01+00:00",
- "target_date": "2026-11-14",
- "target_available": true,
+ "built_utc": "2026-11-14T00:10:02+00:00",
+ "target_date": "2026-11-15",
+ "target_available": false,
  "index_shows": "2026-11-14",
  "files": {
   "2026-10-26": "marginalpdbcpt_20261026.1",
