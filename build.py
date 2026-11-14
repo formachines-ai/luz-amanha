@@ -432,6 +432,12 @@ def hours_table(hours: list[dict], st: dict, tariff: dict, lang: str) -> str:
     return "".join(out)
 
 
+SRC_TZ_LINE = {
+    "pt": "Horas em hora de Lisboa (Europe/Lisbon); fonte: OMIE, ficheiro <code>{f}</code>, coluna Portugal; o ficheiro OMIE usa hora CET.",
+    "en": "Hours in Lisbon time (Europe/Lisbon); source: OMIE, file <code>{f}</code>, Portugal column; the OMIE file uses CET.",
+}
+
+
 T = {
     "pt": {
         "title": "Luz amanhã — preço da eletricidade por hora (OMIE Portugal)",
@@ -528,7 +534,7 @@ def vote_pages(day: dt.date, built: dt.datetime) -> None:
         write(PUBLIC_DIR / "go" / "vote" / day.isoformat() / direction / "index.html", html_text)
 
 
-def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict, status: str | None, neutral: bool = False) -> str:
+def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict, status: str | None, neutral: bool = False, src: str | None = None) -> str:
     t = T[lang]
     weekday_pt = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")[day.weekday()]
     labels = {"pt": f"{day:%d.%m.%Y} ({weekday_pt})", "en": f"{day:%A %d %B %Y}"}[lang]
@@ -608,6 +614,8 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     p.append(f'<p class="note kwh-note">{esc(t["kwh_note"])}</p>')
     p.append(zeroneg_line(hours, lang))
     p.append(hours_table(hours, st, tariff, lang))
+    fname = esc(src or "marginalpdbc_YYYYMMDD.1")
+    p.append(f'<p class="note src-tz">{SRC_TZ_LINE[lang].format(f=fname)}</p>')
     p.append(feedback_links(lang, day))
     p.append("</section>")
     return "".join(p)
@@ -657,7 +665,7 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
     return {
         "date": day.isoformat(), "available": bool(st.get("available")), "timezone": "Europe/Lisbon", "unit": "EUR/MWh", "market": "OMIE day-ahead, Portugal",
         "source_file": source_file, "built_utc": built.isoformat(timespec="seconds"),
-        "hours": [{"hour": x["label"], "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_es_eur_mwh": x["es"],
+        "hours": [{"hour": x["label"], "start": dt.datetime.fromisoformat(x["start_utc"]).astimezone(DISPLAY_TZ).isoformat(), "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_es_eur_mwh": x["es"],
                    "energy_eur_kwh": None if x["pt"] is None else round(x["pt"] / 1000, 4) + 0.0,
                    **({"missing_reason": "needs_next_day_omie_file" if x["label"] == "23:00" else "not_in_omie_file"} if x["pt"] is None else {}),
                    **({"estimate_eur_kwh": None if x["pt"] is None else estimate_kwh(x["pt"], tariff)} if tariff.get("enabled") else {})}
@@ -799,6 +807,7 @@ def static_pages(built: dt.datetime) -> None:
 
 ## Machine-readable
 - {SITE_BASE}/tomorrow.json — tomorrow (Lisbon calendar day), hours in Europe/Lisbon time, price_pt_eur_mwh per hour, cheap_window, dear_window, stats
+- Time fields: top-level timezone = Europe/Lisbon; each hours[] entry has start (ISO 8601 Lisbon time with UTC offset, e.g. 2026-11-16T10:00:00+00:00) and start_utc (the same instant in UTC, ISO 8601); hour is the Lisbon wall-clock label.
 - {SITE_BASE}/today.json — today
 - Field definitions: cheapest_hours = the 3 cheapest single hours of the day (not necessarily consecutive); cheap_window and stats.cheap_window = the cheapest 3 consecutive hours (lowest average). The two can differ.
 - missing_reason: present only on an hours[] entry whose price_pt_eur_mwh is null (never on hours with a price). Values: needs_next_day_omie_file = the Lisbon hour 23:00 lies in the next day's OMIE file, not yet published; not_in_omie_file = any other hour absent from the OMIE files we hold. No price is ever estimated for these hours.
@@ -873,8 +882,8 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     st = stats(hours)
     cmp = comparison(day, files)
     src = omie_filename(day) if day in files else None
-    body = day_section("pt", day, hours, st, cmp, tariff, status) + day_section("en", day, hours, st, cmp, tariff, status)
-    day_body = day_section("pt", day, hours, st, cmp, tariff, None, True) + day_section("en", day, hours, st, cmp, tariff, None, True)
+    body = day_section("pt", day, hours, st, cmp, tariff, status, src=src) + day_section("en", day, hours, st, cmp, tariff, status, src=src)
+    day_body = day_section("pt", day, hours, st, cmp, tariff, None, True, src=src) + day_section("en", day, hours, st, cmp, tariff, None, True, src=src)
     title = f"{SITE_NAME} — {day:%d.%m.%Y}"
     if status == "status_missing":  # index shows today: no 'amanhã' anywhere in title/og:title
         title = f"{T['pt']['title_today']} — {day:%d.%m.%Y}"
