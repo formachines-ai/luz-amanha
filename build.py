@@ -128,6 +128,9 @@ def rebuilt_text(lang: str) -> str:
     return f"Page rebuilt at {b:%H:%M} UTC ({b:%d.%m})."
 
 
+SHOWN_SOURCE: list = []  # [(date, file name)] of the day shown on /, for llms.txt
+
+
 def omie_filename(day: dt.date) -> str:
     """Name of the OMIE file actually parsed for `day`: the header line of the cached file says which one it is."""
     parent = OMIE_PARENT
@@ -723,6 +726,13 @@ YAML1 = 'rest:\n  - resource: https://luz.bymachines.ai/today.json\n    scan_int
 YAML2 = 'rest:\n  - resource: https://luz.bymachines.ai/tomorrow.json\n    scan_interval: 1800\n    sensor:\n      - name: "Luz amanha janela barata"\n        value_template: >-\n          {{ value_json.cheap_window.hours\n             if value_json.available and value_json.cheap_window\n             else \'unavailable\' }}\n        json_attributes:\n          - date\n          - available\n          - cheap_window\n          - dear_window\n          - stats\n      - name: "Luz amanha janela cara"\n        value_template: >-\n          {{ value_json.dear_window.hours\n             if value_json.available and value_json.dear_window\n             else \'unavailable\' }}\n      - name: "Luz amanha preco medio"\n        unit_of_measurement: "EUR/MWh"\n        value_template: >-\n          {{ value_json.stats.avg\n             if value_json.available and value_json.stats\n             else \'unavailable\' }}'
 
 
+def shown_source_line() -> str:
+    if not SHOWN_SOURCE:
+        return ""
+    d, f = SHOWN_SOURCE[0]
+    return f"- File behind the page at / for this build ({d.isoformat()}): {f}; the same name is source_file in that day's JSON.\n"
+
+
 def static_pages(built: dt.datetime) -> None:
     legal = f"""<section lang="pt"><h1>Legal</h1>
 <p><strong>Responsável:</strong> {esc(RESPONSIBLE)}. Este site é feito e atualizado por agentes de IA (agent-team) sem edição humana; o responsável é uma pessoa.</p>
@@ -818,7 +828,7 @@ def static_pages(built: dt.datetime) -> None:
 
 ## Facts about the data
 - Source: OMIE public file. The Portugal price comes from marginalpdbcpt_YYYYMMDD.1 or, when that is not published (since 2026-11-11), from column 5 of marginalpdbc_YYYYMMDD.1 (https://www.omie.es/). The file actually used for each day is in source_file of that day's JSON. 96 quarter-hour periods in CET/CEST, averaged per Lisbon hour.
-- Hours are Lisbon time. OMIE files use Madrid time (CET), one hour ahead, so the Lisbon 23:00 of day D is the mean of the first 4 quarter-hours of the Portugal column in the file for D+1; null (missing_reason needs_next_day_omie_file) until that file exists, never interpolated.
+{shown_source_line()}- Hours are Lisbon time. OMIE files use Madrid time (CET), one hour ahead, so the Lisbon 23:00 of day D is the mean of the first 4 quarter-hours of the Portugal column in the file for D+1; null (missing_reason needs_next_day_omie_file) until that file exists, never interpolated.
 - OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15, 13:45, 14:30 and 16:00 UTC.
 - The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
 - A price of 0 or below (EUR/MWh) is a real OMIE value, not an error or a broken sensor; such hours are labelled zero/negative on the page.
@@ -1070,6 +1080,7 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     keep_index = target in kept  # keep the published index.html (it shows the target day)
     main = render_day(main_day, files, tariff, built, status, index_page=not keep_index)
     per_day[main_day] = main
+    SHOWN_SOURCE[:] = [(main_day, omie_filename(main_day))] if main_day in files else []
     tomorrow = per_day.get(target) or kept.get(target) or unavailable_json(target, built, FETCH_CODE.get(target), MISSING.get("next_attempt"), with_note=True)
     write(PUBLIC_DIR / "tomorrow.json", json.dumps(tomorrow, ensure_ascii=False, indent=1))
     write(PUBLIC_DIR / "today.json", json.dumps(per_day.get(today) or kept.get(today) or unavailable_json(today, built), ensure_ascii=False, indent=1))
