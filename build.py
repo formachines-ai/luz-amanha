@@ -533,7 +533,7 @@ def vote_pages(day: dt.date, built: dt.datetime) -> None:
         body = (f'<section lang="pt"><h1>Obrigado</h1><p>Voto registado. <a href="{back}">Voltar à página de {day:%d.%m.%Y}</a></p>'
                 f'<p lang="en">Thanks. <a href="{back}">Back to {day.isoformat()}</a></p></section>')
         html_text = page("Voto — " + SITE_NAME, body, built, SITE_BASE + f"/go/vote/{day.isoformat()}/{direction}/").replace(
-            '<meta name="viewport"', f'<meta http-equiv="refresh" content="0;url={back}">\n<meta name="robots" content="noindex">\n<meta name="viewport"', 1)
+            '<meta name="viewport"', f'<meta http-equiv="refresh" content="0;url={back}">\n<meta name="robots" content="noindex, nofollow">\n<meta name="viewport"', 1)
         write(PUBLIC_DIR / "go" / "vote" / day.isoformat() / direction / "index.html", html_text)
 
 
@@ -810,7 +810,7 @@ def static_pages(built: dt.datetime) -> None:
 <p lang="en">Page not found. Existing pages: <a href="/">tomorrow's price</a> · <a href="/d/">archive</a> · <a href="/tomorrow.json">tomorrow.json</a> · <a href="/llms.txt">llms.txt</a>.</p></section>"""
     write(PUBLIC_DIR / "404.html", page("404 — " + SITE_NAME, nf, built, SITE_BASE + "/404.html"))
 
-    write(PUBLIC_DIR / "robots.txt", f"User-agent: *\nAllow: /\nDisallow: /go/\nSitemap: {SITE_BASE}/sitemap.xml\n")
+    write(PUBLIC_DIR / "robots.txt", f"User-agent: *\nAllow: /\nDisallow: /go/\nDisallow: /go/vote/\nSitemap: {SITE_BASE}/sitemap.xml\n")
     write(PUBLIC_DIR / "llms.txt", f"""# {SITE_NAME} ({SITE_HOST})
 
 > Tomorrow's hourly wholesale electricity price for Portugal (OMIE day-ahead market, EUR/MWh) with the cheapest and most expensive 3-hour windows. Portuguese and English. Made by AI agents (agent-team) without human editing; responsible: {RESPONSIBLE}. License CC BY 4.0.
