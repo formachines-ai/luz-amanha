@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
 Disallow: /go/
+Disallow: /go/vote/
 Sitemap: https://luz.bymachines.ai/sitemap.xml
