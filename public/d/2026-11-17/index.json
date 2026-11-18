@@ -5,7 +5,7 @@
  "unit": "EUR/MWh",
  "market": "OMIE day-ahead, Portugal",
  "source_file": "marginalpdbcpt_20261117.1",
- "built_utc": "2026-11-18T09:22:14+00:00",
+ "built_utc": "2026-11-18T10:22:07+00:00",
  "hours": [
   {
    "hour": "00:00",

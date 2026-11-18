@@ -964,6 +964,12 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     return data
 
 
+def archive_cell(v_mwh: float, hours: str | None = None) -> str:
+    """Archive table cell: [window ·] c/kWh first, EUR/MWh second (2 decimals as in the JSON)."""
+    pre = f"{esc(hours)} · " if hours else ""
+    return f'{pre}{cent_kwh(v_mwh, "pt")} c/kWh <small class="mwh">({v_mwh:.2f} €/MWh)</small>'
+
+
 def archive_index(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) -> None:
     """One summary row per day; every value is read from the same dict that is written to /d/YYYY-MM-DD/index.json."""
     rows = []
@@ -976,10 +982,10 @@ def archive_index(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.d
         if st.get("available"):
             wins.append(cw["hours"] if cw else "")
             mh = next((h["hour"] for h in j["hours"] if h["price_pt_eur_mwh"] == st["min"]), "")
-            cheap = f'{esc(cw["hours"])} · {cw["avg_eur_mwh"]:.2f}' if cw else "–"
+            cheap = archive_cell(cw["avg_eur_mwh"], cw["hours"]) if cw else "–"
             dw = j.get("dear_window")
-            dear = f'{esc(dw["hours"])} · {dw["avg_eur_mwh"]:.2f}' if dw else "–"
-            davg = f'{st["avg"]:.2f}'
+            dear = archive_cell(dw["avg_eur_mwh"], dw["hours"]) if dw else "–"
+            davg = archive_cell(st["avg"])
             mn = f'{st["min"]:.2f} ({esc(mh)})'
             known = "24/24" if st["complete"] and st["available"] == 24 else f'{st["available"]}/24'
             if st["hours_expected"] != 24 and st["complete"]:
@@ -997,11 +1003,11 @@ def archive_index(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.d
         summary = (f'<p><strong>Janela mais barata mais frequente: {esc(best)} em {top} dos últimos {m} dias.</strong> '
                    f'<span lang="en">Most frequent cheapest window: {esc(best)} on {top} of the last {m} days.</span></p>')
     body = ('<section lang="pt"><h1>Arquivo por dia / Archive</h1>'
-            '<p>Preço grossista OMIE (Portugal), €/MWh. Janela barata = 3 horas seguidas com a média mais baixa; janela cara = 3 horas seguidas com a média mais alta; média do dia = média das horas disponíveis; mínimo = hora mais barata; horas conhecidas = N/24. '
-            '<span id="en" lang="en">OMIE wholesale price, €/MWh. Dear window = most expensive 3 consecutive hours (average); day average = mean of the available hours. Cheap window = cheapest 3 consecutive hours (average); minimum = cheapest single hour; known hours = N/24.</span></p>'
+            '<p>Preço grossista OMIE (Portugal), c/kWh primeiro e €/MWh entre parênteses; não é a sua fatura. Janela barata = 3 horas seguidas com a média mais baixa; janela cara = 3 horas seguidas com a média mais alta; média do dia = média das horas disponíveis; mínimo = hora mais barata; horas conhecidas = N/24. '
+            '<span id="en" lang="en">OMIE wholesale price, c/kWh first and €/MWh in brackets; not your bill. Dear window = most expensive 3 consecutive hours (average); day average = mean of the available hours. Cheap window = cheapest 3 consecutive hours (average); minimum = cheapest single hour; known hours = N/24.</span></p>'
             + summary +
-            '<table class="archive"><thead><tr><th scope="col">Dia / Day</th><th scope="col">Janela barata · média €/MWh<br><span lang="en">Cheap window · average €/MWh</span></th>'
-            '<th scope="col">Janela cara · média €/MWh<br><span lang="en">Dear window · average €/MWh</span></th><th scope="col">Média do dia €/MWh<br><span lang="en">Day average €/MWh</span></th>'
+            '<table class="archive"><thead><tr><th scope="col">Dia / Day</th><th scope="col">Janela barata · média c/kWh (€/MWh)<br><span lang="en">Cheap window · average c/kWh (€/MWh)</span></th>'
+            '<th scope="col">Janela cara · média c/kWh (€/MWh)<br><span lang="en">Dear window · average c/kWh (€/MWh)</span></th><th scope="col">Média do dia c/kWh (€/MWh)<br><span lang="en">Day average c/kWh (€/MWh)</span></th>'
             '<th scope="col">Mínimo €/MWh (hora)<br><span lang="en">Minimum €/MWh (hour)</span></th><th scope="col">Horas / Hours</th><th scope="col">JSON</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table></section>')
     write(PUBLIC_DIR / "d" / "index.html", page("Arquivo — " + SITE_NAME, body, built, SITE_BASE + "/d/"))
