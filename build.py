@@ -13,6 +13,7 @@ Everything configurable is in the CONSTANTS block below or in config/tariff.json
 from __future__ import annotations
 
 import argparse
+from decimal import Decimal, ROUND_HALF_UP
 import datetime as dt
 import html
 import json
@@ -346,10 +347,23 @@ def fmt(v: float | None, nd: int = 2) -> str:
     return s[1:] if s.startswith("-") and float(s) == 0 else s
 
 
+def cent_round(v_mwh: float) -> float:
+    """EUR/MWh / 10 -> c/kWh, 1 decimal, half away from zero (T-0183); never -0.0."""
+    d = (Decimal(repr(float(v_mwh))) / 10).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    return float(d) + 0.0
+
+
 def cent_kwh(v_mwh: float | None, lang: str = "pt") -> str:
     """OMIE EUR/MWh -> c/kWh (divide by 10), one decimal; PT decimal comma; -0.0 printed 0.0."""
-    s = fmt(None if v_mwh is None else v_mwh / 10.0, 1)
+    if v_mwh is None:
+        return "—"
+    s = f"{cent_round(v_mwh):.1f}"
     return s.replace(".", ",") if lang == "pt" else s
+
+
+def pc(v_mwh: float, lang: str = "pt") -> str:
+    """Plain-text 'c/kWh (€/MWh)' for feed and meta descriptions."""
+    return f"{cent_kwh(v_mwh, lang)} c/kWh ({fmt(v_mwh)} €/MWh)"
 
 
 def price_pair(v_mwh: float | None, lang: str = "pt") -> str:
@@ -681,7 +695,7 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
     return {
         "date": day.isoformat(), "available": bool(st.get("available")), "timezone": "Europe/Lisbon", "unit": "EUR/MWh", "market": "OMIE day-ahead, Portugal",
         "source_file": source_file, "built_utc": built.isoformat(timespec="seconds"),
-        "hours": [{"hour": x["label"], "start": dt.datetime.fromisoformat(x["start_utc"]).astimezone(DISPLAY_TZ).isoformat(), "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_pt_cent_kwh": None if x["pt"] is None else x["pt"] / 10 + 0.0, "price_es_eur_mwh": x["es"],
+        "hours": [{"hour": x["label"], "start": dt.datetime.fromisoformat(x["start_utc"]).astimezone(DISPLAY_TZ).isoformat(), "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_pt_cent_kwh": None if x["pt"] is None else cent_round(x["pt"]), "price_es_eur_mwh": x["es"],
                    "energy_eur_kwh": None if x["pt"] is None else round(x["pt"] / 1000, 4) + 0.0,
                    **({"missing_reason": "needs_next_day_omie_file" if x["label"] == "23:00" else "not_in_omie_file"} if x["pt"] is None else {}),
                    **({"estimate_eur_kwh": None if x["pt"] is None else estimate_kwh(x["pt"], tariff)} if tariff.get("enabled") else {})}
@@ -845,6 +859,7 @@ def static_pages(built: dt.datetime) -> None:
 - OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15, 13:45, 14:30 and 16:00 UTC.
 - The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
 - A price of 0 or below (EUR/MWh) is a real OMIE value, not an error or a broken sensor; such hours are labelled zero/negative on the page.
+- price_pt_cent_kwh = price_pt_eur_mwh / 10, 1 decimal, half away from zero
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
 
 ## Pages
@@ -913,16 +928,16 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
     canonical = SITE_BASE + "/" if index_page else f"{SITE_BASE}/d/{day.isoformat()}/"
     desc = ""
     if st.get("available"):
-        desc = (f"Luz {day:%d.%m}: mais barato {window_text(hours, st['cheap_window'])} ({fmt(st['cheap_window']['avg'])} €/MWh), "
-                f"mais caro {window_text(hours, st['dear_window'])} ({fmt(st['dear_window']['avg'])} €/MWh), média {fmt(st['avg'])} €/MWh.")
+        desc = (f"Luz {day:%d.%m}: mais barato {window_text(hours, st['cheap_window'])} {pc(st['cheap_window']['avg'])}, "
+                f"mais caro {window_text(hours, st['dear_window'])} {pc(st['dear_window']['avg'])}, média {pc(st['avg'])}.")
     og_title = og_desc = ""
     if st.get("available") and st.get("cheap_window"):
         cw = st["cheap_window"]
         og_title = f"Luz {day:%d.%m} — preço OMIE por hora (Portugal)"
         n = f" (dados para {st['available']} de {st['hours_expected']} horas)" if not st["complete"] else ""
         n_en = f" (data for {st['available']} of {st['hours_expected']} hours)" if not st["complete"] else ""
-        og_desc = (f"Janela de 3 horas mais barata: {window_text(hours, cw)}, média {fmt(cw['avg'])} €/MWh (OMIE grossista){n}. "
-                   f"EN: cheapest 3-hour window {window_text(hours, cw)}, average {fmt(cw['avg'])} €/MWh (OMIE wholesale){n_en}.")
+        og_desc = (f"Janela de 3 horas mais barata: {window_text(hours, cw)}, média {pc(cw['avg'])} (OMIE grossista){n}. "
+                   f"EN: cheapest 3-hour window {window_text(hours, cw)}, average {pc(cw['avg'], 'en')} (OMIE wholesale){n_en}.")
     site_ld = {"@context": "https://schema.org", "@type": "WebSite", "name": SITE_NAME, "url": SITE_BASE + "/",
                "inLanguage": ["pt", "en"], "description": T["en"]["lead"],
                "publisher": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"}}
@@ -999,8 +1014,8 @@ def feed(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) 
         if not j or not j["stats"].get("available"):
             continue
         s = j["stats"]
-        txt = (f"Luz {d:%d.%m}: mais barato {j['cheap_window']['hours']} ({j['cheap_window']['avg_eur_mwh']:.2f} €/MWh), "
-               f"mais caro {j['dear_window']['hours']} ({j['dear_window']['avg_eur_mwh']:.2f} €/MWh), média {s['avg']:.2f} €/MWh. "
+        txt = (f"Luz {d:%d.%m}: mais barato {j['cheap_window']['hours']} {pc(j['cheap_window']['avg_eur_mwh'])}, "
+               f"mais caro {j['dear_window']['hours']} {pc(j['dear_window']['avg_eur_mwh'])}, média {pc(s['avg'])}. "
                f"Cheapest {j['cheap_window']['hours']}, dearest {j['dear_window']['hours']}. Publicado por um agente de IA; responsável: {RESPONSIBLE}.")
         pub = dt.datetime.combine(d - dt.timedelta(days=1), dt.time(13, 30), tzinfo=dt.timezone.utc)
         title = f"Luz {d:%d.%m.%Y}: mais barato " + j["cheap_window"]["hours"]

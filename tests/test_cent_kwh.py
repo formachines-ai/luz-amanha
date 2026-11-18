@@ -14,10 +14,16 @@ class CentKwh(unittest.TestCase):
         self.assertEqual(build.cent_kwh(95.26, "en"), "9.5")
 
     def test_negative_and_zero(self):
-        self.assertEqual(build.cent_kwh(-12.5, "en"), "-1.2")
-        self.assertEqual(build.cent_kwh(-12.5, "pt"), "-1,2")
+        self.assertEqual(build.cent_kwh(-12.5, "en"), "-1.3")
+        self.assertEqual(build.cent_kwh(-12.5, "pt"), "-1,3")
         self.assertEqual(build.cent_kwh(-0.4, "pt"), "0,0")
         self.assertEqual(build.cent_kwh(0.0, "en"), "0.0")
+
+    def test_half_away(self):
+        self.assertEqual(build.cent_kwh(12.5, "en"), "1.3")
+        self.assertEqual(build.cent_kwh(12.4, "en"), "1.2")
+        self.assertEqual(build.cent_kwh(-0.04, "pt"), "0,0")
+        self.assertEqual(build.cent_round(-12.5), -1.3)
 
     def test_pair_order(self):
         p = build.price_pair(-30.0, "pt")
