@@ -5,14 +5,14 @@
  "unit": "EUR/MWh",
  "market": "OMIE day-ahead, Portugal",
  "source_file": "marginalpdbcpt_20261104.1",
- "built_utc": "2026-11-18T08:21:23+00:00",
+ "built_utc": "2026-11-18T09:22:14+00:00",
  "hours": [
   {
    "hour": "00:00",
    "start": "2026-11-04T00:00:00+00:00",
    "start_utc": "2026-11-04T00:00:00+00:00",
    "price_pt_eur_mwh": 234.74,
-   "price_pt_cent_kwh": 23.474,
+   "price_pt_cent_kwh": 23.5,
    "price_es_eur_mwh": 234.74,
    "energy_eur_kwh": 0.2347
   },
@@ -21,7 +21,7 @@
    "start": "2026-11-04T01:00:00+00:00",
    "start_utc": "2026-11-04T01:00:00+00:00",
    "price_pt_eur_mwh": 223.18,
-   "price_pt_cent_kwh": 22.318,
+   "price_pt_cent_kwh": 22.3,
    "price_es_eur_mwh": 223.18,
    "energy_eur_kwh": 0.2232
   },
@@ -30,7 +30,7 @@
    "start": "2026-11-04T02:00:00+00:00",
    "start_utc": "2026-11-04T02:00:00+00:00",
    "price_pt_eur_mwh": 221.43,
-   "price_pt_cent_kwh": 22.143,
+   "price_pt_cent_kwh": 22.1,
    "price_es_eur_mwh": 221.43,
    "energy_eur_kwh": 0.2214
   },
@@ -39,7 +39,7 @@
    "start": "2026-11-04T03:00:00+00:00",
    "start_utc": "2026-11-04T03:00:00+00:00",
    "price_pt_eur_mwh": 225.22,
-   "price_pt_cent_kwh": 22.522,
+   "price_pt_cent_kwh": 22.5,
    "price_es_eur_mwh": 225.22,
    "energy_eur_kwh": 0.2252
   },
@@ -48,7 +48,7 @@
    "start": "2026-11-04T04:00:00+00:00",
    "start_utc": "2026-11-04T04:00:00+00:00",
    "price_pt_eur_mwh": 242.06,
-   "price_pt_cent_kwh": 24.206,
+   "price_pt_cent_kwh": 24.2,
    "price_es_eur_mwh": 242.06,
    "energy_eur_kwh": 0.2421
   },
@@ -57,7 +57,7 @@
    "start": "2026-11-04T05:00:00+00:00",
    "start_utc": "2026-11-04T05:00:00+00:00",
    "price_pt_eur_mwh": 267.77,
-   "price_pt_cent_kwh": 26.776999999999997,
+   "price_pt_cent_kwh": 26.8,
    "price_es_eur_mwh": 267.77,
    "energy_eur_kwh": 0.2678
   },
@@ -66,7 +66,7 @@
    "start": "2026-11-04T06:00:00+00:00",
    "start_utc": "2026-11-04T06:00:00+00:00",
    "price_pt_eur_mwh": 296.17,
-   "price_pt_cent_kwh": 29.617,
+   "price_pt_cent_kwh": 29.6,
    "price_es_eur_mwh": 296.17,
    "energy_eur_kwh": 0.2962
   },
@@ -75,7 +75,7 @@
    "start": "2026-11-04T07:00:00+00:00",
    "start_utc": "2026-11-04T07:00:00+00:00",
    "price_pt_eur_mwh": 299.85,
-   "price_pt_cent_kwh": 29.985000000000003,
+   "price_pt_cent_kwh": 30.0,
    "price_es_eur_mwh": 299.85,
    "energy_eur_kwh": 0.2999
   },
@@ -84,7 +84,7 @@
    "start": "2026-11-04T08:00:00+00:00",
    "start_utc": "2026-11-04T08:00:00+00:00",
    "price_pt_eur_mwh": 266.49,
-   "price_pt_cent_kwh": 26.649,
+   "price_pt_cent_kwh": 26.6,
    "price_es_eur_mwh": 266.49,
    "energy_eur_kwh": 0.2665
   },
@@ -93,7 +93,7 @@
    "start": "2026-11-04T09:00:00+00:00",
    "start_utc": "2026-11-04T09:00:00+00:00",
    "price_pt_eur_mwh": 199.13,
-   "price_pt_cent_kwh": 19.913,
+   "price_pt_cent_kwh": 19.9,
    "price_es_eur_mwh": 199.13,
    "energy_eur_kwh": 0.1991
   },
@@ -102,7 +102,7 @@
    "start": "2026-11-04T10:00:00+00:00",
    "start_utc": "2026-11-04T10:00:00+00:00",
    "price_pt_eur_mwh": 181.2,
-   "price_pt_cent_kwh": 18.119999999999997,
+   "price_pt_cent_kwh": 18.1,
    "price_es_eur_mwh": 181.2,
    "energy_eur_kwh": 0.1812
   },
@@ -111,7 +111,7 @@
    "start": "2026-11-04T11:00:00+00:00",
    "start_utc": "2026-11-04T11:00:00+00:00",
    "price_pt_eur_mwh": 180.91,
-   "price_pt_cent_kwh": 18.091,
+   "price_pt_cent_kwh": 18.1,
    "price_es_eur_mwh": 180.91,
    "energy_eur_kwh": 0.1809
   },
@@ -120,7 +120,7 @@
    "start": "2026-11-04T12:00:00+00:00",
    "start_utc": "2026-11-04T12:00:00+00:00",
    "price_pt_eur_mwh": 181.6,
-   "price_pt_cent_kwh": 18.16,
+   "price_pt_cent_kwh": 18.2,
    "price_es_eur_mwh": 181.6,
    "energy_eur_kwh": 0.1816
   },
@@ -129,7 +129,7 @@
    "start": "2026-11-04T13:00:00+00:00",
    "start_utc": "2026-11-04T13:00:00+00:00",
    "price_pt_eur_mwh": 183.08,
-   "price_pt_cent_kwh": 18.308,
+   "price_pt_cent_kwh": 18.3,
    "price_es_eur_mwh": 183.08,
    "energy_eur_kwh": 0.1831
   },
@@ -138,7 +138,7 @@
    "start": "2026-11-04T14:00:00+00:00",
    "start_utc": "2026-11-04T14:00:00+00:00",
    "price_pt_eur_mwh": 189.95,
-   "price_pt_cent_kwh": 18.994999999999997,
+   "price_pt_cent_kwh": 19.0,
    "price_es_eur_mwh": 189.95,
    "energy_eur_kwh": 0.1899
   },
@@ -147,7 +147,7 @@
    "start": "2026-11-04T15:00:00+00:00",
    "start_utc": "2026-11-04T15:00:00+00:00",
    "price_pt_eur_mwh": 250.97,
-   "price_pt_cent_kwh": 25.097,
+   "price_pt_cent_kwh": 25.1,
    "price_es_eur_mwh": 250.97,
    "energy_eur_kwh": 0.251
   },
@@ -156,7 +156,7 @@
    "start": "2026-11-04T16:00:00+00:00",
    "start_utc": "2026-11-04T16:00:00+00:00",
    "price_pt_eur_mwh": 284.68,
-   "price_pt_cent_kwh": 28.468,
+   "price_pt_cent_kwh": 28.5,
    "price_es_eur_mwh": 284.68,
    "energy_eur_kwh": 0.2847
   },
@@ -165,7 +165,7 @@
    "start": "2026-11-04T17:00:00+00:00",
    "start_utc": "2026-11-04T17:00:00+00:00",
    "price_pt_eur_mwh": 313.99,
-   "price_pt_cent_kwh": 31.399,
+   "price_pt_cent_kwh": 31.4,
    "price_es_eur_mwh": 307.08,
    "energy_eur_kwh": 0.314
   },
@@ -183,7 +183,7 @@
    "start": "2026-11-04T19:00:00+00:00",
    "start_utc": "2026-11-04T19:00:00+00:00",
    "price_pt_eur_mwh": 379.2,
-   "price_pt_cent_kwh": 37.92,
+   "price_pt_cent_kwh": 37.9,
    "price_es_eur_mwh": 288.95,
    "energy_eur_kwh": 0.3792
   },
@@ -192,7 +192,7 @@
    "start": "2026-11-04T20:00:00+00:00",
    "start_utc": "2026-11-04T20:00:00+00:00",
    "price_pt_eur_mwh": 367.74,
-   "price_pt_cent_kwh": 36.774,
+   "price_pt_cent_kwh": 36.8,
    "price_es_eur_mwh": 284.13,
    "energy_eur_kwh": 0.3677
   },
@@ -201,7 +201,7 @@
    "start": "2026-11-04T21:00:00+00:00",
    "start_utc": "2026-11-04T21:00:00+00:00",
    "price_pt_eur_mwh": 327.92,
-   "price_pt_cent_kwh": 32.792,
+   "price_pt_cent_kwh": 32.8,
    "price_es_eur_mwh": 277.67,
    "energy_eur_kwh": 0.3279
   },
@@ -210,7 +210,7 @@
    "start": "2026-11-04T22:00:00+00:00",
    "start_utc": "2026-11-04T22:00:00+00:00",
    "price_pt_eur_mwh": 275.77,
-   "price_pt_cent_kwh": 27.576999999999998,
+   "price_pt_cent_kwh": 27.6,
    "price_es_eur_mwh": 274.55,
    "energy_eur_kwh": 0.2758
   },
@@ -219,7 +219,7 @@
    "start": "2026-11-04T23:00:00+00:00",
    "start_utc": "2026-11-04T23:00:00+00:00",
    "price_pt_eur_mwh": 252.23,
-   "price_pt_cent_kwh": 25.223,
+   "price_pt_cent_kwh": 25.2,
    "price_es_eur_mwh": 252.23,
    "energy_eur_kwh": 0.2522
   }
