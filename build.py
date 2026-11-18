@@ -129,6 +129,7 @@ def rebuilt_text(lang: str) -> str:
     return f"Page rebuilt at {b:%H:%M} UTC ({b:%d.%m})."
 
 
+MTD: dict = {}  # month-to-date summary of the raw OMIE price (T-0191), set in build before rendering
 SHOWN_SOURCE: list = []  # [(date, file name)] of the day shown on /, for llms.txt
 
 
@@ -573,6 +574,38 @@ def vote_pages(day: dt.date, built: dt.datetime) -> None:
         write(PUBLIC_DIR / "go" / "vote" / day.isoformat() / direction / "index.html", html_text)
 
 
+def month_to_date(today: dt.date, files: dict) -> dict:
+    """Mean of all non-null Lisbon hourly PT prices from the 1st of today's month to today (T-0191); no interpolation."""
+    total, hours_n, days_n = 0.0, 0, 0
+    d = today.replace(day=1)
+    while d <= today:
+        if d in files:
+            vals = [h["pt"] for h in lisbon_hours(d, files) if h["pt"] is not None]
+            if vals:
+                days_n += 1
+                hours_n += len(vals)
+                total += sum(vals)
+        d += dt.timedelta(days=1)
+    avg = round(total / hours_n, 2) if hours_n else None
+    return {"from": today.replace(day=1).isoformat(), "to": today.isoformat(), "days": days_n, "hours": hours_n,
+            "avg_pt_eur_mwh": avg, "avg_pt_cent_kwh": None if avg is None else cent_round(avg)}
+
+
+def mtd_line(lang: str) -> str:
+    m = MTD
+    if not m or m.get("avg_pt_eur_mwh") is None:
+        return ""
+    dd = dt.date.fromisoformat(m["to"])
+    n = m["days"]
+    if lang == "pt":
+        txt = (f"Média do mês até hoje ({dd:%d.%m}): {cent_kwh(m['avg_pt_eur_mwh'], 'pt')} c/kWh ({fmt(m['avg_pt_eur_mwh'])} €/MWh), "
+               f"{n} {'dia' if n == 1 else 'dias'} ({m['hours']} horas com preço). Preço grossista OMIE, não é a sua fatura.")
+    else:
+        txt = (f"Month-to-date average ({dd:%d.%m}): {cent_kwh(m['avg_pt_eur_mwh'], 'en')} c/kWh ({fmt(m['avg_pt_eur_mwh'])} €/MWh), "
+               f"{n} {'day' if n == 1 else 'days'} ({m['hours']} hours with a price). OMIE wholesale price, not your bill.")
+    return f'<p class="note mtd-line">{esc(txt)}</p>'
+
+
 def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict, status: str | None, neutral: bool = False, src: str | None = None) -> str:
     t = T[lang]
     weekday_pt = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")[day.weekday()]
@@ -639,6 +672,8 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
              + (f" · {esc(t['vs_week'])} {wk:+.1f}%" if wk is not None else "") + "</dd></div>")
     p.append("</dl>")
     p.append(f'<p class="note caveat">{esc(t["caveat"])}</p></div>')
+    if not neutral:
+        p.append(mtd_line(lang))
     if yd is not None or wk is not None:
         p.append(f'<p class="note">{esc(t["cmp_basis"])}</p>')
     p.append(svg_chart(hours, st))
@@ -870,6 +905,7 @@ def static_pages(built: dt.datetime) -> None:
 - A price of 0 or below (EUR/MWh) is a real OMIE value, not an error or a broken sensor; such hours are labelled zero/negative on the page.
 - quarters_pt_eur_mwh = the 15-minute OMIE prices of the hour; price_pt_eur_mwh is their mean
 - price_pt_cent_kwh = price_pt_eur_mwh / 10, 1 decimal, half away from zero
+- today.json only: month_to_date = {{from, to, days, hours, avg_pt_eur_mwh, avg_pt_cent_kwh}}: mean of all Lisbon hourly Portugal prices with a value from the 1st of the current month to today (to); days = days with at least one priced hour, hours = hours counted; missing hours are not interpolated; avg_pt_cent_kwh = avg_pt_eur_mwh / 10, 1 decimal, half away from zero. Raw wholesale price, not a bill; no tariff comparison. Also shown on /.
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
 
 ## Pages
@@ -1111,6 +1147,8 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
         MISSING.update(date=target, last_attempt=la, built=built, next_attempt=nxt, code=code if code is not None else (prev or {}).get("last_attempt_http"))
     if not have_target and today not in files:
         log.error("neither %s nor today %s available — index will say so", target, today)
+    MTD.clear()
+    MTD.update(month_to_date(today, files))
     per_day: dict[dt.date, dict] = {}
     on_disk = set()
     for p in (PUBLIC_DIR / "d").glob("????-??-??/index.html"):
@@ -1127,7 +1165,9 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     SHOWN_SOURCE[:] = [(main_day, omie_filename(main_day))] if main_day in files else []
     tomorrow = per_day.get(target) or kept.get(target) or unavailable_json(target, built, FETCH_CODE.get(target), MISSING.get("next_attempt"), with_note=True)
     write(PUBLIC_DIR / "tomorrow.json", json.dumps(tomorrow, ensure_ascii=False, indent=1))
-    write(PUBLIC_DIR / "today.json", json.dumps(per_day.get(today) or kept.get(today) or unavailable_json(today, built), ensure_ascii=False, indent=1))
+    today_j = dict(per_day.get(today) or kept.get(today) or unavailable_json(today, built))
+    today_j["month_to_date"] = dict(MTD)
+    write(PUBLIC_DIR / "today.json", json.dumps(today_j, ensure_ascii=False, indent=1))
     check_rollover(today)
     per_day.update({d: j for d, j in kept.items() if d not in per_day})
     all_days = sorted(set(files) | set(kept))

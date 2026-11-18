@@ -22,6 +22,7 @@
 - A price of 0 or below (EUR/MWh) is a real OMIE value, not an error or a broken sensor; such hours are labelled zero/negative on the page.
 - quarters_pt_eur_mwh = the 15-minute OMIE prices of the hour; price_pt_eur_mwh is their mean
 - price_pt_cent_kwh = price_pt_eur_mwh / 10, 1 decimal, half away from zero
+- today.json only: month_to_date = {from, to, days, hours, avg_pt_eur_mwh, avg_pt_cent_kwh}: mean of all Lisbon hourly Portugal prices with a value from the 1st of the current month to today (to); days = days with at least one priced hour, hours = hours counted; missing hours are not interpolated; avg_pt_cent_kwh = avg_pt_eur_mwh / 10, 1 decimal, half away from zero. Raw wholesale price, not a bill; no tariff comparison. Also shown on /.
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
 
 ## Pages
