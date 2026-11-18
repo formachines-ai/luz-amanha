@@ -2,10 +2,10 @@
  "date": "2026-11-19",
  "available": false,
  "note": "no file for this date at the last attempt",
- "last_attempt": "2026-11-18T10:22:07+00:00",
+ "last_attempt": "2026-11-18T12:15:09+00:00",
  "last_attempt_http": null,
  "next_attempt_utc": "13:15",
- "built_utc": "2026-11-18T10:22:07+00:00",
+ "built_utc": "2026-11-18T12:15:09+00:00",
  "timezone": "Europe/Lisbon",
  "disclosure": "Made by AI agents (agent-team) without human editing; responsible: Dmitriy, bymachines.ai. License CC BY 4.0."
 }

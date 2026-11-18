@@ -427,15 +427,19 @@ HOUR23_ROW_NOTE = {"pt": "publicado amanhã pela OMIE", "en": "published by OMIE
 ZERONEG_LABEL = {"pt": "zero/negativo", "en": "zero/negative"}
 
 
-def zeroneg_line(hours: list[dict], lang: str) -> str:
+def zeroneg_line(hours: list[dict], lang: str, src: str | None = None) -> str:
     hs = [x["label"][:2] for x in hours if x["pt"] is not None and x["pt"] <= 0]
     if not hs:
         return ""
     n, lst = len(hs), ", ".join(hs)
     if lang == "pt":
         txt = f"{n} {'hora' if n == 1 else 'horas'} com preço OMIE ≤ 0 €/MWh: {lst} (preço grossista, não é a sua fatura)."
+        if src:
+            txt += f" Preço zero ou negativo é um valor real do mercado OMIE (ficheiro {src}), não é um erro."
     else:
         txt = f"{n} {'hour' if n == 1 else 'hours'} with OMIE price ≤ 0 €/MWh: {lst} (wholesale price, not your bill)."
+        if src:
+            txt += f" A zero or negative price is a real OMIE market value (file {src}), not an error."
     return f'<p class="note zeroneg-line">{esc(txt)}</p>'
 
 
@@ -642,7 +646,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     else:
         p.append(f'<p class="note">{esc(t["est_off"])}</p>')
     p.append(f'<p class="note kwh-note">{esc(t["kwh_note"])}</p>')
-    p.append(zeroneg_line(hours, lang))
+    p.append(zeroneg_line(hours, lang, src))
     p.append(hours_table(hours, st, tariff, lang))
     fname = esc(src or "marginalpdbc_YYYYMMDD.1")
     p.append(f'<p class="note src-tz">{SRC_TZ_LINE[lang].format(f=fname)}</p>')
