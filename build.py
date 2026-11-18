@@ -346,6 +346,19 @@ def fmt(v: float | None, nd: int = 2) -> str:
     return s[1:] if s.startswith("-") and float(s) == 0 else s
 
 
+def cent_kwh(v_mwh: float | None, lang: str = "pt") -> str:
+    """OMIE EUR/MWh -> c/kWh (divide by 10), one decimal; PT decimal comma; -0.0 printed 0.0."""
+    s = fmt(None if v_mwh is None else v_mwh / 10.0, 1)
+    return s.replace(".", ",") if lang == "pt" else s
+
+
+def price_pair(v_mwh: float | None, lang: str = "pt") -> str:
+    """Headline price: c/kWh first, EUR/MWh second in smaller text (HTML)."""
+    if v_mwh is None:
+        return "—"
+    return f'{cent_kwh(v_mwh, lang)} c/kWh <small class="mwh">({fmt(v_mwh)} €/MWh)</small>'
+
+
 def window_text(hours: list[dict], w: dict | None) -> str:
     if not w:
         return "—"
@@ -578,14 +591,14 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
         nl = ("A janela mais barata deste dia (%s) é de madrugada; depois dela, veja as horas restantes na tabela." if lang == "pt"
               else "This day's cheapest window (%s) is at night; after it, check the remaining hours in the table.") % wt
         nl = f'<dd class="note night-window">{esc(nl)}</dd>'
-    p.append(f"<div><dt>{esc(t['cheap'])}</dt><dd class=\"g\">{esc(window_text(hours, st['cheap_window']))} · {fmt(st['cheap_window']['avg']) if st['cheap_window'] else '—'} €/MWh</dd>{nl}</div>")
-    p.append(f"<div><dt>{esc(t['dear'])}</dt><dd class=\"r\">{esc(window_text(hours, st['dear_window']))} · {fmt(st['dear_window']['avg']) if st['dear_window'] else '—'} €/MWh</dd></div>")
+    p.append(f"<div><dt>{esc(t['cheap'])}</dt><dd class=\"g\">{esc(window_text(hours, st['cheap_window']))} · {price_pair(st['cheap_window']['avg'], lang) if st['cheap_window'] else '—'}</dd>{nl}</div>")
+    p.append(f"<div><dt>{esc(t['dear'])}</dt><dd class=\"r\">{esc(window_text(hours, st['dear_window']))} · {price_pair(st['dear_window']['avg'], lang) if st['dear_window'] else '—'}</dd></div>")
     p.append(f"<div><dt>{esc(t['cheapest3'])}</dt><dd>{esc(', '.join(hours[i]['label'] for i in ch))}</dd></div>")
     p.append(f"<div><dt>{esc(t['dearest3'])}</dt><dd>{esc(', '.join(hours[i]['label'] for i in st['dearest_hours']))}</dd></div>")
     na, nn = st.get("night_avg_00_06"), st.get("night_hours_00_06", 0)
     cwn = st["cheap_window"]
-    ntxt = (f"{fmt(na)} €/MWh" + ("" if nn == 6 else f" ({nn}/6 h)")) if na is not None else f"{t['night_none']} (0/6 h)"
-    ntxt = f"{t['night_avg']} {ntxt}" if na is not None else ntxt
+    ntxt = (price_pair(na, lang) + ("" if nn == 6 else f" ({nn}/6 h)")) if na is not None else f"{t['night_none']} (0/6 h)"
+    ntxt = f"{esc(t['night_avg'])} {ntxt}" if na is not None else esc(ntxt)
     ncmp = ""
     if cwn:
         wtxt = window_text(hours, cwn)
@@ -595,10 +608,10 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
         else:
             ncmp = f"For comparison, the cheapest window across all available hours is {wtxt}, " + ("inside the night period." if inside else "outside the night period.")
         ncmp = f'<dd class="note night-compare">{esc(ncmp)}</dd>'
-    p.append(f"<div class=\"night\"><dt>{esc(t['night'])}</dt><dd>{esc(ntxt)}</dd>{ncmp}</div>")
+    p.append(f"<div class=\"night\"><dt>{esc(t['night'])}</dt><dd>{ntxt}</dd>{ncmp}</div>")
     yd = cmp.get("vs_yesterday")
     wk = cmp.get("vs_week")
-    p.append(f"<div><dt>{esc(t['avg_part'] if partial else t['avg'])}</dt><dd>{fmt(st['avg'])} €/MWh"
+    p.append(f"<div><dt>{esc(t['avg_part'] if partial else t['avg'])}</dt><dd>{price_pair(st['avg'], lang)}"
              + (f" · {esc(t['vs_yday'])} {yd:+.1f}%" if yd is not None else "")
              + (f" · {esc(t['vs_week'])} {wk:+.1f}%" if wk is not None else "") + "</dd></div>")
     p.append("</dl>")
@@ -668,7 +681,7 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
     return {
         "date": day.isoformat(), "available": bool(st.get("available")), "timezone": "Europe/Lisbon", "unit": "EUR/MWh", "market": "OMIE day-ahead, Portugal",
         "source_file": source_file, "built_utc": built.isoformat(timespec="seconds"),
-        "hours": [{"hour": x["label"], "start": dt.datetime.fromisoformat(x["start_utc"]).astimezone(DISPLAY_TZ).isoformat(), "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_es_eur_mwh": x["es"],
+        "hours": [{"hour": x["label"], "start": dt.datetime.fromisoformat(x["start_utc"]).astimezone(DISPLAY_TZ).isoformat(), "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_pt_cent_kwh": None if x["pt"] is None else x["pt"] / 10 + 0.0, "price_es_eur_mwh": x["es"],
                    "energy_eur_kwh": None if x["pt"] is None else round(x["pt"] / 1000, 4) + 0.0,
                    **({"missing_reason": "needs_next_day_omie_file" if x["label"] == "23:00" else "not_in_omie_file"} if x["pt"] is None else {}),
                    **({"estimate_eur_kwh": None if x["pt"] is None else estimate_kwh(x["pt"], tariff)} if tariff.get("enabled") else {})}
