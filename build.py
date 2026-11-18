@@ -257,6 +257,7 @@ def lisbon_hours(day: dt.date, files: dict[dt.date, dict]) -> list[dict]:
     Missing hours have pt=None.
     """
     pool: dict[dt.datetime, list[tuple[float, float]]] = {}
+    qpool: dict[dt.datetime, list[tuple[dt.datetime, float]]] = {}
     for d in (day - dt.timedelta(days=1), day, day + dt.timedelta(days=1)):
         parsed = files.get(d)
         if not parsed:
@@ -264,6 +265,8 @@ def lisbon_hours(day: dt.date, files: dict[dt.date, dict]) -> list[dict]:
         for start_utc, pt, es in period_starts(parsed):
             hour_utc = start_utc.replace(minute=0, second=0, microsecond=0)
             pool.setdefault(hour_utc, []).append((pt, es))
+            if parsed["resolution_min"] == 15:
+                qpool.setdefault(hour_utc, []).append((start_utc, pt))
     day_start = dt.datetime.combine(day, dt.time(0), tzinfo=DISPLAY_TZ).astimezone(dt.timezone.utc)
     day_end = dt.datetime.combine(day + dt.timedelta(days=1), dt.time(0), tzinfo=DISPLAY_TZ).astimezone(dt.timezone.utc)
     out: list[dict] = []
@@ -278,7 +281,9 @@ def lisbon_hours(day: dt.date, files: dict[dt.date, dict]) -> list[dict]:
         vals = pool.get(t)
         pt = round(sum(v[0] for v in vals) / len(vals), 2) if vals else None
         es = round(sum(v[1] for v in vals) / len(vals), 2) if vals else None
-        out.append({"label": label, "start_utc": t.isoformat(), "pt": pt, "es": es, "n": len(vals) if vals else 0})
+        qs = sorted(qpool.get(t, []))
+        quarters = [q[1] for q in qs] if len(qs) == 4 and pt is not None else None  # never filled in
+        out.append({"label": label, "start_utc": t.isoformat(), "pt": pt, "es": es, "n": len(vals) if vals else 0, "quarters": quarters})
         t += dt.timedelta(hours=1)
     return out
 
@@ -699,7 +704,7 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
     return {
         "date": day.isoformat(), "available": bool(st.get("available")), "timezone": "Europe/Lisbon", "unit": "EUR/MWh", "market": "OMIE day-ahead, Portugal",
         "source_file": source_file, "built_utc": built.isoformat(timespec="seconds"),
-        "hours": [{"hour": x["label"], "start": dt.datetime.fromisoformat(x["start_utc"]).astimezone(DISPLAY_TZ).isoformat(), "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "price_pt_cent_kwh": None if x["pt"] is None else cent_round(x["pt"]), "price_es_eur_mwh": x["es"],
+        "hours": [{"hour": x["label"], "start": dt.datetime.fromisoformat(x["start_utc"]).astimezone(DISPLAY_TZ).isoformat(), "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "quarters_pt_eur_mwh": x.get("quarters"), "price_pt_cent_kwh": None if x["pt"] is None else cent_round(x["pt"]), "price_es_eur_mwh": x["es"],
                    "energy_eur_kwh": None if x["pt"] is None else round(x["pt"] / 1000, 4) + 0.0,
                    **({"missing_reason": "needs_next_day_omie_file" if x["label"] == "23:00" else "not_in_omie_file"} if x["pt"] is None else {}),
                    **({"estimate_eur_kwh": None if x["pt"] is None else estimate_kwh(x["pt"], tariff)} if tariff.get("enabled") else {})}
@@ -863,6 +868,7 @@ def static_pages(built: dt.datetime) -> None:
 - OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15, 13:45, 14:30 and 16:00 UTC.
 - The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
 - A price of 0 or below (EUR/MWh) is a real OMIE value, not an error or a broken sensor; such hours are labelled zero/negative on the page.
+- quarters_pt_eur_mwh = the 15-minute OMIE prices of the hour; price_pt_eur_mwh is their mean
 - price_pt_cent_kwh = price_pt_eur_mwh / 10, 1 decimal, half away from zero
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
 
