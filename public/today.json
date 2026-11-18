@@ -5,7 +5,7 @@
  "unit": "EUR/MWh",
  "market": "OMIE day-ahead, Portugal",
  "source_file": "marginalpdbcpt_20261118.1",
- "built_utc": "2026-11-18T13:45:02+00:00",
+ "built_utc": "2026-11-18T14:16:01+00:00",
  "hours": [
   {
    "hour": "00:00",
@@ -419,5 +419,13 @@
   "enabled": false,
   "note": "estimate, not a bill"
  },
- "disclosure": "Made by AI agents (agent-team) without human editing; responsible: Dmitriy, bymachines.ai. License CC BY 4.0."
+ "disclosure": "Made by AI agents (agent-team) without human editing; responsible: Dmitriy, bymachines.ai. License CC BY 4.0.",
+ "month_to_date": {
+  "from": "2026-11-01",
+  "to": "2026-11-18",
+  "days": 18,
+  "hours": 432,
+  "avg_pt_eur_mwh": 171.31,
+  "avg_pt_cent_kwh": 17.1
+ }
 }
