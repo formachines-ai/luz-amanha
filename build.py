@@ -1007,9 +1007,9 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
                  f'<br>Today\'s data built on {bd}; if this is not today, see <a href="/d/{td}/">/d/{td}/</a>.</p>')
         body += recent_days_html()
         body += (f'\n<p class="note"><a href="/d/{day.isoformat()}/">Página de {day:%d.%m.%Y} / Page for {day:%d.%m.%Y}</a></p>')
-        h_title = "Preço da luz amanhã em Portugal, hora a hora (OMIE) · Electricity price tomorrow in Portugal"
-        h_desc = ("Preço da eletricidade em Portugal por hora (mercado grossista OMIE, €/MWh) e as 3 horas seguidas mais baratas e mais caras. "
-                  "Hourly wholesale electricity price in Portugal (OMIE day-ahead) with the cheapest and most expensive 3-hour windows.")
+        h_title = "Preço da luz amanhã em Portugal (OMIE) · Electricity price tomorrow"
+        h_desc = ("Preço da luz em Portugal hora a hora (OMIE) e as 3 horas mais baratas de amanhã. "
+                  "Hourly OMIE price, Portugal, cheapest 3 hours.")
         write(PUBLIC_DIR / "index.html", page(h_title, body, built, SITE_BASE + "/", desc=h_desc, jsonld=site_ld, og_title=h_title, og_desc=h_desc))
     return data
 
