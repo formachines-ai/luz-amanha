@@ -494,7 +494,8 @@ T = {
         "night": "Noite 00:00–05:59 (6 h, média das horas 00–05)", "night_avg": "média", "night_cheap": "janela mais barata", "night_none": "sem dados",
         "avg": "Média do dia", "avg_part": "Média das horas disponíveis",
         "incomplete": "Dados para {n} de {m} horas; falta {missing} (a OMIE publica amanhã). Janelas e média usam só as horas conhecidas.",
-        "tz": "Horas de Portugal continental (Europe/Lisbon). OMIE usa hora de Madrid (CET), uma hora à frente; aqui as horas são de Lisboa.",
+        "tz": "Horas em hora de Lisboa (WET = UTC+0 no inverno, WEST = UTC+1 no verão); o OMIE publica em hora de Madrid (CET), uma hora à frente.",
+        "clock_change": "Dia com {n} horas (mudança de hora).",
         "cmp_basis": "Comparações: médias por hora de Lisboa (horas disponíveis) de cada dia, a mesma base da média acima.",
         "vs_yday": "vs. ontem", "vs_week": "vs. média dos últimos 7 dias",
         "hour23": "A hora 23:00 só fica disponível no dia seguinte (o OMIE publica em hora de Espanha).",
@@ -527,7 +528,8 @@ T = {
         "night": "Night 00:00–05:59 (6 h, mean of hours 00–05)", "night_avg": "average", "night_cheap": "cheapest window", "night_none": "no data",
         "avg": "Day average", "avg_part": "Average of the available hours",
         "incomplete": "Data for {n} of {m} hours; {missing} is missing (OMIE publishes it tomorrow). Windows and average use only the known hours.",
-        "tz": "Hours in mainland Portugal time (Europe/Lisbon). OMIE uses Madrid time (CET), one hour ahead; hours here are Lisbon time.",
+        "tz": "Hours in Lisbon time (WET = UTC+0 in winter, WEST = UTC+1 in summer); OMIE publishes in Madrid time (CET), one hour ahead.",
+        "clock_change": "Day with {n} hours (clock change).",
         "cmp_basis": "Comparisons: averages of Lisbon hours (available hours) for each day, the same basis as the average above.",
         "vs_yday": "vs. yesterday", "vs_week": "vs. last 7 days average",
         "hour23": "The 23:00 hour becomes available the next day (OMIE publishes in Spanish time).",
@@ -638,7 +640,10 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     if partial:
         miss = ", ".join(x["label"] for x in hours if x["pt"] is None)
         p.append(f'<p class="note incomplete">{esc(t["incomplete"].format(n=st["available"], m=st["hours_expected"], missing=miss))}</p>')
-    p.append(f'<p class="note">{esc(t["tz"])}</p>')
+    tzl = t["tz"]
+    if st.get("hours_expected") in (23, 25):
+        tzl += " " + t["clock_change"].format(n=st["hours_expected"])
+    p.append(f'<p class="note">{esc(tzl)}</p>')
     cwn0 = st["cheap_window"]
     p.append('<div class="windows"><dl class="kpi">')
     nl = ""
