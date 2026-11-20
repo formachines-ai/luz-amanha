@@ -21,6 +21,7 @@
 - The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
 - A price of 0 or below (EUR/MWh) is a real OMIE value, not an error or a broken sensor; such hours are labelled zero/negative on the page.
 - quarters_eur_mwh (same values as quarters_pt_eur_mwh) = the four raw 15-minute OMIE Portugal prices of the hour in EUR/MWh; price_pt_eur_mwh, the hour price, is the mean of these four values. null when the hour has no price (or the day's file has only hourly rows); never interpolated
+- start_local (ISO 8601, Europe/Lisbon, with offset +00:00 or +01:00) and start_utc (ISO 8601 ending in Z) in each hours[] entry give the exact start of the hour; no timezone guessing needed.
 - price_pt_cent_kwh = price_pt_eur_mwh / 10, 1 decimal, half away from zero
 - today.json only: month_to_date = {month, from, to, days, hours, avg_eur_mwh, avg_cent_kwh; avg_pt_eur_mwh and avg_pt_cent_kwh are older aliases with the same values}: mean of all Lisbon hourly Portugal prices with a value from the 1st of the current month to today (to); days = days with at least one priced hour, hours = hours counted; missing hours are not interpolated; avg_pt_cent_kwh = avg_pt_eur_mwh / 10, 1 decimal, half away from zero. Raw wholesale price, not a bill; no tariff comparison. Also shown on /.
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
