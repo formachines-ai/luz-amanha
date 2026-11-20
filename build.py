@@ -744,7 +744,7 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
     return {
         "date": day.isoformat(), "available": bool(st.get("available")), "timezone": "Europe/Lisbon", "unit": "EUR/MWh", "market": "OMIE day-ahead, Portugal",
         "source_file": source_file, "built_utc": built.isoformat(timespec="seconds"),
-        "hours": [{"hour": x["label"], "start": dt.datetime.fromisoformat(x["start_utc"]).astimezone(DISPLAY_TZ).isoformat(), "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "quarters_pt_eur_mwh": x.get("quarters"), "price_pt_cent_kwh": None if x["pt"] is None else cent_round(x["pt"]), "price_es_eur_mwh": x["es"],
+        "hours": [{"hour": x["label"], "start": dt.datetime.fromisoformat(x["start_utc"]).astimezone(DISPLAY_TZ).isoformat(), "start_utc": x["start_utc"], "price_pt_eur_mwh": x["pt"], "quarters_pt_eur_mwh": x.get("quarters"), "quarters_eur_mwh": x.get("quarters"), "price_pt_cent_kwh": None if x["pt"] is None else cent_round(x["pt"]), "price_es_eur_mwh": x["es"],
                    "energy_eur_kwh": None if x["pt"] is None else round(x["pt"] / 1000, 4) + 0.0,
                    **({"missing_reason": "needs_next_day_omie_file" if x["label"] == "23:00" else "not_in_omie_file"} if x["pt"] is None else {}),
                    **({"estimate_eur_kwh": None if x["pt"] is None else estimate_kwh(x["pt"], tariff)} if tariff.get("enabled") else {})}
@@ -841,6 +841,7 @@ def static_pages(built: dt.datetime) -> None:
 <li><strong>scan_interval:</strong> 1800 segundos (30 min) é o mínimo que recomendamos; os dados mudam no máximo algumas vezes por dia.</li>
 <li><strong>Campos:</strong> <code>date</code>, <code>available</code>, <code>cheap_window.hours</code> (por exemplo «10:00–13:00», hora de Lisboa), <code>cheap_window.avg_eur_mwh</code>, <code>dear_window.hours</code>, <code>stats.avg</code>, <code>stats.min</code>, <code>stats.max</code>.</li>
 <li><strong>Fonte:</strong> OMIE, ficheiro <code>marginalpdbcpt_AAAAMMDD.1</code> ou, quando não existe, <code>marginalpdbc_AAAAMMDD.1</code> (coluna 5 = Portugal). Valores em bruto em €/MWh (hora = média de quatro quartos de hora), sem redes, impostos nem margem do comercializador.</li>
+<li><strong>Quartos de hora:</strong> cada entrada de <code>hours[]</code> tem <code>quarters_eur_mwh</code>, os quatro valores OMIE de 15 minutos (€/MWh); o preço da hora é a média desses quatro valores.</li>
 <li>Não é aconselhamento tarifário nem financeiro.</li>
 </ul></section>
 <section id="en" lang="en"><h2>Home Assistant: cheapest and dearest window of the day</h2>
@@ -850,6 +851,7 @@ def static_pages(built: dt.datetime) -> None:
 <li><strong>When tomorrow appears:</strong> OMIE publishes around 13:00–14:20 Madrid time; the site rebuilds at __S__ UTC. Until then <code>tomorrow.json</code> says <code>"available": false</code> (not out yet) and has no window fields, so the sensors show <code>unavailable</code>.</li>
 <li><strong>scan_interval:</strong> 1800 seconds (30 min) is the minimum we ask for; the data changes a few times a day at most.</li>
 <li><strong>Source:</strong> OMIE file <code>marginalpdbcpt_YYYYMMDD.1</code> or, when it is not published, <code>marginalpdbc_YYYYMMDD.1</code> (column 5 = Portugal). Raw prices in EUR/MWh (an hour = mean of four quarter-hours), excluding grid fees, taxes and supplier margin. Hours are Lisbon time.</li>
+<li><strong>Quarter-hours:</strong> each <code>hours[]</code> entry has <code>quarters_eur_mwh</code>, the four 15-minute OMIE values (EUR/MWh); the hour price is the mean of those four values.</li>
 <li>Not tariff or financial advice.</li>
 </ul></section>"""
     ha = ha.replace("__Y1__", esc(YAML1)).replace("__Y2__", esc(YAML2)).replace("__S__", ", ".join(SCHEDULE_UTC))
@@ -910,7 +912,7 @@ def static_pages(built: dt.datetime) -> None:
 - OMIE publishes around 13:00–14:20 Madrid time for the next day; the site rebuilds at 13:15, 13:45, 14:30 and 16:00 UTC.
 - The Lisbon hour 23:00 of a day needs the next day's file, so for tomorrow it is missing until the day after.
 - A price of 0 or below (EUR/MWh) is a real OMIE value, not an error or a broken sensor; such hours are labelled zero/negative on the page.
-- quarters_pt_eur_mwh = the 15-minute OMIE prices of the hour; price_pt_eur_mwh is their mean
+- quarters_eur_mwh (same values as quarters_pt_eur_mwh) = the four raw 15-minute OMIE Portugal prices of the hour in EUR/MWh; price_pt_eur_mwh, the hour price, is the mean of these four values. null when the hour has no price (or the day's file has only hourly rows); never interpolated
 - price_pt_cent_kwh = price_pt_eur_mwh / 10, 1 decimal, half away from zero
 - today.json only: month_to_date = {{from, to, days, hours, avg_pt_eur_mwh, avg_pt_cent_kwh}}: mean of all Lisbon hourly Portugal prices with a value from the 1st of the current month to today (to); days = days with at least one priced hour, hours = hours counted; missing hours are not interpolated; avg_pt_cent_kwh = avg_pt_eur_mwh / 10, 1 decimal, half away from zero. Raw wholesale price, not a bill; no tariff comparison. Also shown on /.
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.

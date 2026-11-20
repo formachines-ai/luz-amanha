@@ -46,7 +46,7 @@ no price is ever carried over or invented. Offline keep-existing: if the cache l
 | `data/fixtures/` | three real files for `--selftest` (split day, 25-hour day, ordinary day) + `README.md` with the format. |
 | `public/index.html` | tomorrow (or today when OMIE has not published yet), PT then EN. |
 | `public/d/YYYY-MM-DD/index.html`, `index.json` | archive, one page + one JSON per Lisbon day. `public/d/` = index. |
-| `public/tomorrow.json`, `today.json` | same JSON as the archive files; `tomorrow.json` carries `available: false` when not published. |
+| `public/tomorrow.json`, `today.json` | (each `hours[]` entry has `quarters_eur_mwh`: the four raw 15-min OMIE values whose mean is the hour price, null when the hour is null; T-0218) same JSON as the archive files; `tomorrow.json` carries `available: false` when not published. |
 | `public/feed.xml`, `sitemap.xml`, `llms.txt`, `robots.txt`, `404.html`, `build.json` | feeds and metadata. |
 | `public/legal/` | responsible person, source, "not advice", CC BY 4.0, link to https://formachines.ai/legal/. |
 | `public/go/telegram/` | meta-refresh redirect to the Telegram channel (URL = `TELEGRAM_URL` in `build.py`). Hits on `/go/telegram/` are the click counter; `robots.txt` disallows `/go/`. |
