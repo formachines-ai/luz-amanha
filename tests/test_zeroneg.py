@@ -49,3 +49,18 @@ class ZeroNeg(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ZeroNegWording(unittest.TestCase):
+    def test_line_only_when_some_hour_le_zero(self):
+        src = "marginalpdbcpt_20261119.1"
+        neg = hrs([5.0, -0.16])
+        pt = build.zeroneg_line(neg, "pt", src)
+        en = build.zeroneg_line(neg, "en", src)
+        self.assertIn("zero ou negativo é real", pt)
+        self.assertIn("zero or negative price is real", en)
+        self.assertIn(src, pt)
+        self.assertIn(src, en)
+        pos = hrs([0.01, 5.0])
+        self.assertEqual(build.zeroneg_line(pos, "pt", src), "")
+        self.assertEqual(build.zeroneg_line(pos, "en", src), "")
