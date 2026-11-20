@@ -92,12 +92,17 @@ class QA(unittest.TestCase):
                 continue
             for h in d["hours"]:
                 v = h["price_pt_eur_mwh"]
+                self.assertIn("quarters_eur_mwh", h, (p, h["hour"]))
                 if v is None:
+                    self.assertIsNone(h["quarters_eur_mwh"], (p, h["hour"]))
                     continue
                 exp = float((Decimal(repr(float(v))) / 10).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)) + 0.0
                 self.assertEqual(h["price_pt_cent_kwh"], exp, (p, h["hour"]))
-                q = h.get("quarters_pt_eur_mwh")
+                q = h.get("quarters_eur_mwh")
+                self.assertEqual(q, h.get("quarters_pt_eur_mwh"), (p, h["hour"]))
                 if q:
+                    self.assertEqual(len(q), 4, (p, h["hour"]))
+                    self.assertEqual(round(sum(q) / 4, 2), v, (p, h["hour"]))
                     self.assertAlmostEqual(sum(q) / len(q), v, delta=0.011, msg=(p, h["hour"]))
 
     def test_5_index_pt_en_windows(self):
