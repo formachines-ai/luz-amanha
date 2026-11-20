@@ -35,6 +35,11 @@ class HourMapping(unittest.TestCase):
         self.assertFalse(st["complete"])
         self.assertEqual(st["available"], 23)
 
+    def test_note_only_when_23_null(self):
+        src = (ROOT / "build.py").read_text(encoding="utf-8")
+        self.assertIn("ficheiro OMIE do dia seguinte", src)
+        self.assertIn("next day's OMIE file", src)
+
 
 if __name__ == "__main__":
     unittest.main()
