@@ -91,3 +91,29 @@ class Links(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Orphans(unittest.TestCase):
+    def test_sitemap_urls_have_inbound_link(self):
+        """T-0221: every sitemap <loc> is linked from at least one other generated HTML page."""
+        locs = re.findall(r"<loc>([^<]+)</loc>", (OUT / "sitemap.xml").read_text(encoding="utf-8"))
+        self.assertGreater(len(locs), 5)
+        inbound = {}
+        for p in OUT.rglob("*.html"):
+            src = p.relative_to(OUT).as_posix()
+            for m in re.finditer(r'\bhref="([^"]*)"', p.read_text(encoding="utf-8")):
+                url = m.group(1).replace("&amp;", "&").split("#")[0]
+                if not internal(url):
+                    continue
+                f = resolve(url)
+                if f is not None:
+                    inbound.setdefault(f, set()).add(src)
+        orphans = []
+        for loc in locs:
+            f = resolve(loc)
+            if f is None:
+                continue  # missing files are reported by test_sitemap_locs
+            self_rel = f.relative_to(OUT).as_posix() if OUT in f.parents else None
+            if not (inbound.get(f, set()) - {self_rel}):
+                orphans.append(loc)
+        self.assertEqual(orphans, [], "sitemap URLs with no inbound internal link")

@@ -734,7 +734,7 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 {body}
 </main>
 <footer><p>{esc(t['footer'])}{esc(RESPONSIBLE)} · {esc(t['updated'])} {built:%Y-%m-%d %H:%M} UTC</p>
-<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)} · {esc(T['en']['updated'])} {built:%Y-%m-%d %H:%M} UTC · <a href="/legal/">legal</a> · <a href="/ha/">Home Assistant</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
+<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)} · {esc(T['en']['updated'])} {built:%Y-%m-%d %H:%M} UTC · <a href="/legal/">legal</a> · <a href="/ha/">Home Assistant</a> · <a href="/brand/">brand</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
 </body>
 </html>
 """
@@ -1184,7 +1184,14 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     check_rollover(today)
     per_day.update({d: j for d, j in kept.items() if d not in per_day})
     all_days = sorted(set(files) | set(kept))
-    archive_index(all_days, per_day, built)
+    arch_days = sorted(set(all_days) | set(NAV_DAYS))  # T-0221: the archive lists every dated page that is in the sitemap
+    for d in arch_days:
+        if d not in per_day:
+            try:
+                per_day[d] = json.loads((PUBLIC_DIR / "d" / d.isoformat() / "index.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                pass
+    archive_index(arch_days, per_day, built)
     feed(all_days, per_day, built)
     static_pages(built)
     write(PUBLIC_DIR / "build.json", json.dumps({
