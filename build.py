@@ -441,11 +441,11 @@ def zeroneg_line(hours: list[dict], lang: str, src: str | None = None) -> str:
     if lang == "pt":
         txt = f"{n} {'hora' if n == 1 else 'horas'} com preço OMIE ≤ 0 €/MWh: {lst} (preço grossista, não é a sua fatura)."
         if src:
-            txt += f" Preço zero ou negativo é um valor real do mercado OMIE (ficheiro {src}), não é um erro."
+            txt += f" Preço zero ou negativo é real: é o valor publicado pelo OMIE (ficheiro {src}), não um erro."
     else:
         txt = f"{n} {'hour' if n == 1 else 'hours'} with OMIE price ≤ 0 €/MWh: {lst} (wholesale price, not your bill)."
         if src:
-            txt += f" A zero or negative price is a real OMIE market value (file {src}), not an error."
+            txt += f" A zero or negative price is real: it is the value OMIE published (file {src}), not an error."
     return f'<p class="note zeroneg-line">{esc(txt)}</p>'
 
 
