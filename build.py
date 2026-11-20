@@ -589,22 +589,25 @@ def month_to_date(today: dt.date, files: dict) -> dict:
                 total += sum(vals)
         d += dt.timedelta(days=1)
     avg = round(total / hours_n, 2) if hours_n else None
-    return {"from": today.replace(day=1).isoformat(), "to": today.isoformat(), "days": days_n, "hours": hours_n,
-            "avg_pt_eur_mwh": avg, "avg_pt_cent_kwh": None if avg is None else cent_round(avg)}
+    cent = None if avg is None else cent_round(avg)
+    return {"month": today.strftime("%Y-%m"), "from": today.replace(day=1).isoformat(), "to": today.isoformat(),
+            "days": days_n, "hours": hours_n, "avg_eur_mwh": avg, "avg_cent_kwh": cent,
+            "avg_pt_eur_mwh": avg, "avg_pt_cent_kwh": cent}
 
 
 def mtd_line(lang: str) -> str:
     m = MTD
-    if not m or m.get("avg_pt_eur_mwh") is None:
+    if not m or m.get("avg_eur_mwh") is None:
         return ""
     dd = dt.date.fromisoformat(m["to"])
+    d0 = dt.date.fromisoformat(m["from"])
     n = m["days"]
     if lang == "pt":
-        txt = (f"Média do mês até hoje ({dd:%d.%m}): {cent_kwh(m['avg_pt_eur_mwh'], 'pt')} c/kWh ({fmt(m['avg_pt_eur_mwh'])} €/MWh), "
-               f"{n} {'dia' if n == 1 else 'dias'} ({m['hours']} horas com preço). Preço grossista OMIE, não é a sua fatura.")
+        txt = (f"Média OMIE do mês até hoje ({d0:%d.%m}–{dd:%d.%m}, {n} {'dia' if n == 1 else 'dias'}): "
+               f"{cent_kwh(m['avg_eur_mwh'], 'pt')} c/kWh ({fmt(m['avg_eur_mwh']).replace('.', ',')} €/MWh), preço grossista, não é a sua fatura")
     else:
-        txt = (f"Month-to-date average ({dd:%d.%m}): {cent_kwh(m['avg_pt_eur_mwh'], 'en')} c/kWh ({fmt(m['avg_pt_eur_mwh'])} €/MWh), "
-               f"{n} {'day' if n == 1 else 'days'} ({m['hours']} hours with a price). OMIE wholesale price, not your bill.")
+        txt = (f"OMIE month-to-date average ({d0:%d.%m}–{dd:%d.%m}, {n} {'day' if n == 1 else 'days'}): "
+               f"{cent_kwh(m['avg_eur_mwh'], 'en')} c/kWh ({fmt(m['avg_eur_mwh'])} €/MWh), wholesale price, not your bill")
     return f'<p class="note mtd-line">{esc(txt)}</p>'
 
 
@@ -914,7 +917,7 @@ def static_pages(built: dt.datetime) -> None:
 - A price of 0 or below (EUR/MWh) is a real OMIE value, not an error or a broken sensor; such hours are labelled zero/negative on the page.
 - quarters_eur_mwh (same values as quarters_pt_eur_mwh) = the four raw 15-minute OMIE Portugal prices of the hour in EUR/MWh; price_pt_eur_mwh, the hour price, is the mean of these four values. null when the hour has no price (or the day's file has only hourly rows); never interpolated
 - price_pt_cent_kwh = price_pt_eur_mwh / 10, 1 decimal, half away from zero
-- today.json only: month_to_date = {{from, to, days, hours, avg_pt_eur_mwh, avg_pt_cent_kwh}}: mean of all Lisbon hourly Portugal prices with a value from the 1st of the current month to today (to); days = days with at least one priced hour, hours = hours counted; missing hours are not interpolated; avg_pt_cent_kwh = avg_pt_eur_mwh / 10, 1 decimal, half away from zero. Raw wholesale price, not a bill; no tariff comparison. Also shown on /.
+- today.json only: month_to_date = {{month, from, to, days, hours, avg_eur_mwh, avg_cent_kwh; avg_pt_eur_mwh and avg_pt_cent_kwh are older aliases with the same values}}: mean of all Lisbon hourly Portugal prices with a value from the 1st of the current month to today (to); days = days with at least one priced hour, hours = hours counted; missing hours are not interpolated; avg_pt_cent_kwh = avg_pt_eur_mwh / 10, 1 decimal, half away from zero. Raw wholesale price, not a bill; no tariff comparison. Also shown on /.
 - EUR/MWh is a fact. Any EUR/kWh "estimate" adds dated regulated components set by the responsible person and is not a bill.
 
 ## Pages
