@@ -856,6 +856,7 @@ def static_pages(built: dt.datetime) -> None:
 <li><strong>Fonte:</strong> OMIE, ficheiro <code>marginalpdbcpt_AAAAMMDD.1</code> ou, quando não existe, <code>marginalpdbc_AAAAMMDD.1</code> (coluna 5 = Portugal). Valores em bruto em €/MWh (hora = média de quatro quartos de hora), sem redes, impostos nem margem do comercializador.</li>
 <li><strong>Quartos de hora:</strong> cada entrada de <code>hours[]</code> tem <code>quarters_eur_mwh</code>, os quatro valores OMIE de 15 minutos (€/MWh); o preço da hora é a média desses quatro valores.</li>
 <li><strong>Hora exata:</strong> cada entrada de <code>hours[]</code> tem <code>start_local</code> (ISO 8601, Europe/Lisbon, com desvio, por exemplo +00:00 ou +01:00) e <code>start_utc</code> (termina em Z); não é preciso adivinhar o fuso.</li>
+<li><strong>built_utc:</strong> em <code>tomorrow.json</code>, <code>today.json</code> e <code>/d/&lt;data&gt;/index.json</code>, <code>built_utc</code> é a hora dos dados OMIE de que o ficheiro é construído (ficheiros D e D+1), não a hora da construção; a hora real da construção está em <a href="/build.json">/build.json</a>.</li>
 <li>Não é aconselhamento tarifário nem financeiro.</li>
 </ul></section>
 <section id="en" lang="en"><h2>Home Assistant: cheapest and dearest window of the day</h2>
@@ -867,6 +868,7 @@ def static_pages(built: dt.datetime) -> None:
 <li><strong>Source:</strong> OMIE file <code>marginalpdbcpt_YYYYMMDD.1</code> or, when it is not published, <code>marginalpdbc_YYYYMMDD.1</code> (column 5 = Portugal). Raw prices in EUR/MWh (an hour = mean of four quarter-hours), excluding grid fees, taxes and supplier margin. Hours are Lisbon time.</li>
 <li><strong>Quarter-hours:</strong> each <code>hours[]</code> entry has <code>quarters_eur_mwh</code>, the four 15-minute OMIE values (EUR/MWh); the hour price is the mean of those four values.</li>
 <li><strong>Exact time:</strong> each <code>hours[]</code> entry has <code>start_local</code> (ISO 8601, Europe/Lisbon, with offset, e.g. +00:00 or +01:00) and <code>start_utc</code> (ending in Z), so no timezone guessing is needed.</li>
+<li><strong>built_utc:</strong> in <code>tomorrow.json</code>, <code>today.json</code> and <code>/d/&lt;date&gt;/index.json</code>, <code>built_utc</code> is the time of the OMIE data the file is built from (files D and D+1), not the build time; the real build time is in <a href="/build.json">/build.json</a>.</li>
 <li>Not tariff or financial advice.</li>
 </ul></section>"""
     ha = ha.replace("__Y1__", esc(YAML1)).replace("__Y2__", esc(YAML2)).replace("__S__", ", ".join(SCHEDULE_UTC))
@@ -918,6 +920,7 @@ def static_pages(built: dt.datetime) -> None:
 - missing_reason: present only on an hours[] entry whose price_pt_eur_mwh is null (never on hours with a price). Values: needs_next_day_omie_file = the Lisbon hour 23:00 lies in the next day's OMIE file, not yet published; not_in_omie_file = any other hour absent from the OMIE files we hold. No price is ever estimated for these hours.
 - {SITE_BASE}/d/YYYY-MM-DD/index.json — archive, one file per day. /d/YYYY-MM-DD/ and its index.json exist only after OMIE publishes that day (about 13:00 CET); until then tomorrow.json has available:false and the archive URL returns 404.
 - When available is false (tomorrow.json every day from 00:00 until OMIE publishes, about 13:15 UTC): present = date, available (false), built_utc, timezone, disclosure, and for tomorrow.json also note, last_attempt, last_attempt_http, next_attempt_utc (today.json has no note). Absent = unit, market, source_file, hours, stats, comparison, cheap_window, dear_window, estimate. No price is carried over or invented. Check available first, then read cheap_window, dear_window and stats only when it is true.
+- built_utc in tomorrow.json, today.json and /d/<date>/index.json is the time of the OMIE data the file is built from (files D and D+1), not the build time; the real build time is in {SITE_BASE}/build.json. / built_utc em tomorrow.json, today.json e /d/<data>/index.json é a hora dos dados OMIE (ficheiros D e D+1), não a hora da construção; esta está em build.json.
 - {SITE_BASE}/feed.xml — RSS, one item per published day
 - {SITE_BASE}/build.json — when the site was last built and which OMIE files it used
 
