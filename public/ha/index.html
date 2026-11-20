@@ -91,6 +91,7 @@
 <li><strong>Fonte:</strong> OMIE, ficheiro <code>marginalpdbcpt_AAAAMMDD.1</code> ou, quando não existe, <code>marginalpdbc_AAAAMMDD.1</code> (coluna 5 = Portugal). Valores em bruto em €/MWh (hora = média de quatro quartos de hora), sem redes, impostos nem margem do comercializador.</li>
 <li><strong>Quartos de hora:</strong> cada entrada de <code>hours[]</code> tem <code>quarters_eur_mwh</code>, os quatro valores OMIE de 15 minutos (€/MWh); o preço da hora é a média desses quatro valores.</li>
 <li><strong>Hora exata:</strong> cada entrada de <code>hours[]</code> tem <code>start_local</code> (ISO 8601, Europe/Lisbon, com desvio, por exemplo +00:00 ou +01:00) e <code>start_utc</code> (termina em Z); não é preciso adivinhar o fuso.</li>
+<li><strong>built_utc:</strong> em <code>tomorrow.json</code>, <code>today.json</code> e <code>/d/&lt;data&gt;/index.json</code>, <code>built_utc</code> é a hora dos dados OMIE de que o ficheiro é construído (ficheiros D e D+1), não a hora da construção; a hora real da construção está em <a href="/build.json">/build.json</a>.</li>
 <li>Não é aconselhamento tarifário nem financeiro.</li>
 </ul></section>
 <section id="en" lang="en"><h2>Home Assistant: cheapest and dearest window of the day</h2>
@@ -102,6 +103,7 @@
 <li><strong>Source:</strong> OMIE file <code>marginalpdbcpt_YYYYMMDD.1</code> or, when it is not published, <code>marginalpdbc_YYYYMMDD.1</code> (column 5 = Portugal). Raw prices in EUR/MWh (an hour = mean of four quarter-hours), excluding grid fees, taxes and supplier margin. Hours are Lisbon time.</li>
 <li><strong>Quarter-hours:</strong> each <code>hours[]</code> entry has <code>quarters_eur_mwh</code>, the four 15-minute OMIE values (EUR/MWh); the hour price is the mean of those four values.</li>
 <li><strong>Exact time:</strong> each <code>hours[]</code> entry has <code>start_local</code> (ISO 8601, Europe/Lisbon, with offset, e.g. +00:00 or +01:00) and <code>start_utc</code> (ending in Z), so no timezone guessing is needed.</li>
+<li><strong>built_utc:</strong> in <code>tomorrow.json</code>, <code>today.json</code> and <code>/d/&lt;date&gt;/index.json</code>, <code>built_utc</code> is the time of the OMIE data the file is built from (files D and D+1), not the build time; the real build time is in <a href="/build.json">/build.json</a>.</li>
 <li>Not tariff or financial advice.</li>
 </ul></section>
 </main>
