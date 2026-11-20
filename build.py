@@ -16,6 +16,7 @@ import argparse
 from decimal import Decimal, ROUND_HALF_UP
 import datetime as dt
 import html
+import hashlib
 import json
 import logging
 import os
@@ -576,7 +577,7 @@ def vote_pages(day: dt.date, built: dt.datetime) -> None:
     for direction in ("up", "down"):
         body = (f'<section lang="pt"><h1>Obrigado</h1><p>Voto registado. <a href="{back}">Voltar à página de {day:%d.%m.%Y}</a></p>'
                 f'<p lang="en">Thanks. <a href="{back}">Back to {day.isoformat()}</a></p></section>')
-        html_text = page("Voto — " + SITE_NAME, body, built, SITE_BASE + f"/go/vote/{day.isoformat()}/{direction}/").replace(
+        html_text = page("Voto — " + SITE_NAME, body, None, SITE_BASE + f"/go/vote/{day.isoformat()}/{direction}/").replace(
             '<meta name="viewport"', f'<meta http-equiv="refresh" content="0;url={back}">\n<meta name="robots" content="noindex, nofollow">\n<meta name="viewport"', 1)
         write(PUBLIC_DIR / "go" / "vote" / day.isoformat() / direction / "index.html", html_text)
 
@@ -716,6 +717,9 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
     d_ = desc or T['en']['lead']
     ld = ('\n<script type="application/ld+json">' + json.dumps(jsonld, ensure_ascii=False).replace("</", "<\\/") + "</script>") if jsonld else ""
     hl = "".join(f'\n<link rel="alternate" hreflang="{h}" href="{esc(canonical + a)}">' for h, a in (("pt", ""), ("en", "#en"), ("x-default", ""))) if hreflang else ""
+    # T-0226: built=None -> no build-time stamp (pages without data); dated pages pass the data stamp
+    upd_pt = f" · {esc(t['updated'])} {built:%Y-%m-%d %H:%M} UTC" if built else ""
+    upd_en = f" · {esc(T['en']['updated'])} {built:%Y-%m-%d %H:%M} UTC" if built else ""
     return f"""<!DOCTYPE html>
 <html lang="{lang_first}">
 <head>
@@ -742,8 +746,8 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 <main>
 {body}
 </main>
-<footer><p>{esc(t['footer'])}{esc(RESPONSIBLE)} · {esc(t['updated'])} {built:%Y-%m-%d %H:%M} UTC</p>
-<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)} · {esc(T['en']['updated'])} {built:%Y-%m-%d %H:%M} UTC · <a href="/legal/">legal</a> · <a href="/ha/">Home Assistant</a> · <a href="/brand/">brand</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
+<footer><p>{esc(t['footer'])}{esc(RESPONSIBLE)}{upd_pt}</p>
+<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)}{upd_en} · <a href="/legal/">legal</a> · <a href="/ha/">Home Assistant</a> · <a href="/brand/">brand</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
 </body>
 </html>
 """
@@ -835,7 +839,7 @@ def static_pages(built: dt.datetime) -> None:
 <p><strong>Privacy:</strong> no cookies, no tracking, no forms. The server keeps technical access logs (IP address, user agent) for a limited time for visit counting and security.</p>
 <p><strong>License:</strong> site texts, charts and JSON — CC BY 4.0. Source data belongs to OMIE.</p>
 <p>Full terms, contact and data policy: <a href="{LEGAL_UPSTREAM}">{LEGAL_UPSTREAM}</a>.</p></section>"""
-    write(PUBLIC_DIR / "legal" / "index.html", page("Legal — " + SITE_NAME, legal, built, SITE_BASE + "/legal/"))
+    write(PUBLIC_DIR / "legal" / "index.html", page("Legal — " + SITE_NAME, legal, None, SITE_BASE + "/legal/"))
 
     ha = f"""<section lang="pt"><h1>Home Assistant: janela mais barata e mais cara do dia</h1>
 <p>Dois sensores <code>rest</code> prontos a colar que leem <a href="/today.json">today.json</a> e <a href="/tomorrow.json">tomorrow.json</a> e dão a janela de 3 horas seguidas mais barata (<code>cheap_window</code>) e mais cara (<code>dear_window</code>). Preço OMIE em bruto, sem margens.</p>
@@ -871,7 +875,7 @@ def static_pages(built: dt.datetime) -> None:
              "description": ha_desc, "inLanguage": ["pt", "en"],
              "isPartOf": {"@type": "WebSite", "name": SITE_NAME, "url": SITE_BASE + "/"},
              "publisher": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"}}
-    write(PUBLIC_DIR / "ha" / "index.html", page("Home Assistant — " + SITE_NAME, ha, built, SITE_BASE + "/ha/", desc=ha_desc, jsonld=ha_ld, hreflang=True))
+    write(PUBLIC_DIR / "ha" / "index.html", page("Home Assistant — " + SITE_NAME, ha, None, SITE_BASE + "/ha/", desc=ha_desc, jsonld=ha_ld, hreflang=True))
 
     brand = f"""<section lang="pt"><h1>Marca / Brand</h1>
 <p>Avatar do site e dos canais. Dois desenhos de geometria simples, legíveis num círculo de 48 px, sem texto. Escolhido: <strong>A</strong>.</p>
@@ -887,19 +891,19 @@ def static_pages(built: dt.datetime) -> None:
 <ul><li><a href="/brand/avatar.svg">/brand/avatar.svg</a> (512×512, escolhido / chosen)</li><li><a href="/brand/avatar-512.png">avatar-512.png</a> (PNG 512×512) · <a href="/brand/avatar-1024.png">avatar-1024.png</a> (PNG 1024×1024) — Telegram, etc.</li><li><a href="/brand/avatar-a.svg">avatar-a.svg</a> · <a href="/brand/avatar-b.svg">avatar-b.svg</a></li></ul>
 <h2>Canais / Channels</h2>
 <ul><li>Telegram <a href="{esc(TELEGRAM_URL)}">@luz_amanha</a> — a carregar pelo responsável / to be uploaded by the owner</li><li>Favicon — <a href="/">luz.bymachines.ai</a> (já ativo / active)</li></ul></section>"""
-    write(PUBLIC_DIR / "brand" / "index.html", page("Brand — " + SITE_NAME, brand, built, SITE_BASE + "/brand/"))
+    write(PUBLIC_DIR / "brand" / "index.html", page("Brand — " + SITE_NAME, brand, None, SITE_BASE + "/brand/"))
 
     tg = f"""<section lang="pt"><h1>Telegram</h1>
 <p>A redirecionar para o canal… Se não abrir: <a href="{esc(TELEGRAM_URL)}">{esc(TELEGRAM_URL)}</a></p>
 <p lang="en">Redirecting to the Telegram channel… If nothing happens: <a href="{esc(TELEGRAM_URL)}">{esc(TELEGRAM_URL)}</a></p></section>"""
-    tg_page = page("Telegram — " + SITE_NAME, tg, built, SITE_BASE + "/go/telegram/").replace(
+    tg_page = page("Telegram — " + SITE_NAME, tg, None, SITE_BASE + "/go/telegram/").replace(
         '<meta name="viewport"', f'<meta http-equiv="refresh" content="1;url={esc(TELEGRAM_URL)}">\n<meta name="robots" content="noindex">\n<meta name="viewport"', 1)
     write(PUBLIC_DIR / "go" / "telegram" / "index.html", tg_page)
 
     nf = """<section lang="pt"><h1>Página não encontrada (404)</h1>
 <p>Esta página não existe. Páginas que existem: <a href="/">preço de amanhã</a> · <a href="/d/">arquivo por dia</a> (<code>/d/AAAA-MM-DD/</code>) · <a href="/tomorrow.json">tomorrow.json</a> · <a href="/today.json">today.json</a> · <a href="/feed.xml">feed</a> · <a href="/legal/">legal</a>.</p>
 <p lang="en">Page not found. Existing pages: <a href="/">tomorrow's price</a> · <a href="/d/">archive</a> · <a href="/tomorrow.json">tomorrow.json</a> · <a href="/llms.txt">llms.txt</a>.</p></section>"""
-    write(PUBLIC_DIR / "404.html", page("404 — " + SITE_NAME, nf, built, SITE_BASE + "/404.html"))
+    write(PUBLIC_DIR / "404.html", page("404 — " + SITE_NAME, nf, None, SITE_BASE + "/404.html"))
 
     write(PUBLIC_DIR / "robots.txt", f"User-agent: *\nAllow: /\nDisallow: /go/\nDisallow: /go/vote/\nSitemap: {SITE_BASE}/sitemap.xml\n")
     write(PUBLIC_DIR / "llms.txt", f"""# {SITE_NAME} ({SITE_HOST})
@@ -983,6 +987,8 @@ def recent_days_html() -> str:
 
 
 def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, status: str | None, index_page: bool) -> dict:
+    # T-0226: dated pages follow the OMIE files D and D+1; only index.html keeps the build time
+    stamp = day_stamp(day) if day in files else None
     hours = lisbon_hours(day, files)
     st = stats(hours)
     cmp = comparison(day, files)
@@ -1009,7 +1015,7 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
                "inLanguage": ["pt", "en"], "description": T["en"]["lead"],
                "publisher": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"}}
     day_ld = {"@context": "https://schema.org", "@type": "Dataset", "name": f"{SITE_NAME} — OMIE Portugal day-ahead price {day.isoformat()}",
-              "description": desc or T["en"]["lead"], "temporalCoverage": day.isoformat(), "dateModified": built.date().isoformat(),
+              "description": desc or T["en"]["lead"], "temporalCoverage": day.isoformat(), "dateModified": (stamp or built).date().isoformat(),
               "url": f"{SITE_BASE}/d/{day.isoformat()}/", "license": "https://creativecommons.org/licenses/by/4.0/",
               "inLanguage": ["pt", "en"],
               "creator": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"},
@@ -1017,10 +1023,10 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
               "isBasedOn": {"@type": "Dataset", "name": "OMIE marginalpdbcpt / marginalpdbc day-ahead market results", "url": "https://www.omie.es/"},
               "distribution": {"@type": "DataDownload", "encodingFormat": "application/json",
                                "contentUrl": f"{SITE_BASE}/d/{day.isoformat()}/index.json"}}
-    html_text = page(title, day_nav(day) + day_body, built, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld, og_title=og_title, og_desc=og_desc)
-    data = day_json(day, hours, st, cmp, tariff, built, src)
+    html_text = page(title, day_nav(day) + day_body, stamp, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld, og_title=og_title, og_desc=og_desc)
+    data = day_json(day, hours, st, cmp, tariff, stamp or built, src)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.html", html_text)
-    vote_pages(day, built)
+    vote_pages(day, None)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.json", json.dumps(data, ensure_ascii=False, indent=1))
     if index_page:
         bd, td = built.date().isoformat(), built.astimezone(DISPLAY_TZ).date().isoformat()
@@ -1084,6 +1090,34 @@ def archive_index(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.d
     write(PUBLIC_DIR / "d" / "index.html", page("Arquivo — " + SITE_NAME, body, built, SITE_BASE + "/d/"))
 
 
+STAMPS: dict[dt.date, dt.datetime] = {}
+
+
+def load_stamps(built: dt.datetime) -> None:
+    """data/omie/stamps.json: per cached OMIE file its sha256 and the UTC time that content first arrived. A new or
+    changed file gets `built`; unchanged files keep their time, so rebuilds do not change dated pages (T-0226)."""
+    mp = DATA_DIR / "stamps.json"
+    try:
+        man = json.loads(mp.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        man = {}
+    new = {}
+    for p in sorted(DATA_DIR.glob("????-??-??.txt")):
+        sha = hashlib.sha256(p.read_bytes()).hexdigest()
+        old = man.get(p.stem)
+        new[p.stem] = old if old and old.get("sha256") == sha else {"sha256": sha, "changed_utc": built.isoformat(timespec="seconds")}
+    if new != man and DATA_DIR.is_dir():
+        mp.write_text(json.dumps(new, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    STAMPS.clear()
+    STAMPS.update({dt.date.fromisoformat(k): dt.datetime.fromisoformat(v["changed_utc"]) for k, v in new.items()})
+
+
+def day_stamp(day: dt.date) -> dt.datetime | None:
+    """Later of the arrival times of OMIE files D and D+1 (the Lisbon hour 23:00 of D is in file D+1); None without data."""
+    c = [STAMPS[d] for d in (day, day + dt.timedelta(days=1)) if d in STAMPS]
+    return max(c) if c else None
+
+
 def feed(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) -> None:
     items = []
     for d in sorted(days, reverse=True)[:FEED_ITEMS]:
@@ -1099,13 +1133,16 @@ def feed(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) 
         items.append(f"<item><title>{esc(title)}</title>"
                      f"<link>{SITE_BASE}/d/{d.isoformat()}/</link><guid>{SITE_BASE}/d/{d.isoformat()}/</guid>"
                      f"<pubDate>{pub:%a, %d %b %Y %H:%M:%S} +0000</pubDate><description>{esc(txt)}</description></item>")
+    last_build = max([day_stamp(d) for d in days if day_stamp(d)] or [built])  # follows the data, not the clock
     xml = (f'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>{esc(SITE_NAME)}</title><link>{SITE_BASE}/</link>'
            f"<description>{esc(T['en']['lead'])} Made by AI agents; responsible: {esc(RESPONSIBLE)}.</description><language>pt</language>"
-           f"<lastBuildDate>{built:%a, %d %b %Y %H:%M:%S} +0000</lastBuildDate>{''.join(items)}</channel></rss>")
+           f"<lastBuildDate>{last_build:%a, %d %b %Y %H:%M:%S} +0000</lastBuildDate>{''.join(items)}</channel></rss>")
     write(PUBLIC_DIR / "feed.xml", xml)
-    urls = [SITE_BASE + "/", SITE_BASE + "/d/", SITE_BASE + "/ha/", SITE_BASE + "/legal/", SITE_BASE + "/brand/"] + [f"{SITE_BASE}/d/{d.isoformat()}/" for d in sorted(set(days) | set(NAV_DAYS))]
+    lm_all = max([day_stamp(d) for d in days if day_stamp(d)] or [built])
+    urls = [(SITE_BASE + "/", lm_all), (SITE_BASE + "/d/", lm_all), (SITE_BASE + "/ha/", None), (SITE_BASE + "/legal/", None), (SITE_BASE + "/brand/", None)] \
+        + [(f"{SITE_BASE}/d/{d.isoformat()}/", day_stamp(d)) for d in sorted(set(days) | set(NAV_DAYS))]
     write(PUBLIC_DIR / "sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-          + "".join(f"<url><loc>{u}</loc><lastmod>{built:%Y-%m-%d}</lastmod></url>" for u in urls) + "</urlset>")
+          + "".join(f"<url><loc>{u}</loc>" + (f"<lastmod>{lm:%Y-%m-%d}</lastmod>" if lm else "") + "</url>" for u, lm in urls) + "</urlset>")
 
 
 def existing_available(day: dt.date, *names: str) -> dict | None:
@@ -1172,6 +1209,7 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
         MISSING.update(date=target, last_attempt=la, built=built, next_attempt=nxt, code=code if code is not None else (prev or {}).get("last_attempt_http"))
     if not have_target and today not in files:
         log.error("neither %s nor today %s available — index will say so", target, today)
+    load_stamps(built)
     MTD.clear()
     MTD.update(month_to_date(today, files))
     per_day: dict[dt.date, dict] = {}
