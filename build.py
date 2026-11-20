@@ -754,6 +754,8 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
         "cheap_window": {"hours": window_text(hours, st["cheap_window"]), "avg_eur_mwh": st["cheap_window"]["avg"]} if st.get("cheap_window") else None,
         "dear_window": {"hours": window_text(hours, st["dear_window"]), "avg_eur_mwh": st["dear_window"]["avg"]} if st.get("dear_window") else None,
         "estimate": {"enabled": bool(tariff.get("enabled")), "note": "estimate, not a bill", **({k: tariff[k] for k in ("source", "valid_from", "snapshot_date")} if tariff.get("enabled") else {})},
+        "hour_23_note": ({"pt": T["pt"]["hour23"], "en": T["en"]["hour23"]}
+                         if any(x["label"] == "23:00" and x["pt"] is None for x in hours) else None),
         "disclosure": DISCLOSURE,
     }
 
