@@ -944,6 +944,14 @@ def static_pages(built: dt.datetime) -> None:
         '<meta name="viewport"', f'<meta http-equiv="refresh" content="1;url={esc(TELEGRAM_URL)}">\n<meta name="robots" content="noindex">\n<meta name="viewport"', 1)
     write(PUBLIC_DIR / "go" / "telegram" / "index.html", tg_page)
 
+    # T-0236: rescue the Mastodon link cut at the ellipsis (/ha… = /ha%E2%80%A6); not in sitemap/feed/llms.txt
+    ha_alias = """<section lang="pt"><h1>Home Assistant</h1>
+<p>Este endereço foi cortado. O guia está em <a href="/ha/?src=mastodon">/ha/</a>.</p>
+<p lang="en">This address was cut short. The guide is at <a href="/ha/?src=mastodon">/ha/</a>.</p></section>"""
+    ha_alias_page = page("Home Assistant — " + SITE_NAME, ha_alias, None, SITE_BASE + "/ha/").replace(
+        '<meta name="viewport"', '<meta http-equiv="refresh" content="0; url=/ha/?src=mastodon">\n<meta name="robots" content="noindex">\n<meta name="viewport"', 1)
+    write(PUBLIC_DIR / "ha\u2026" / "index.html", ha_alias_page)
+
     nf = """<section lang="pt"><h1>Página não encontrada (404)</h1>
 <p>Esta página não existe. Páginas que existem: <a href="/">preço de amanhã</a> · <a href="/d/">arquivo por dia</a> (<code>/d/AAAA-MM-DD/</code>) · <a href="/tomorrow.json">tomorrow.json</a> · <a href="/today.json">today.json</a> · <a href="/feed.xml">feed</a> · <a href="/legal/">legal</a>.</p>
 <p lang="en">Page not found. Existing pages: <a href="/">tomorrow's price</a> · <a href="/d/">archive</a> · <a href="/tomorrow.json">tomorrow.json</a> · <a href="/llms.txt">llms.txt</a>.</p></section>"""

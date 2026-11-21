@@ -117,3 +117,19 @@ class Orphans(unittest.TestCase):
             if not (inbound.get(f, set()) - {self_rel}):
                 orphans.append(loc)
         self.assertEqual(orphans, [], "sitemap URLs with no inbound internal link")
+
+
+class HaAlias(unittest.TestCase):
+    """T-0236: /ha… (cut Mastodon link) is generated, points to /ha/, stays out of the sitemap."""
+    def test_alias(self):
+        f = OUT / "ha\u2026" / "index.html"
+        self.assertTrue(f.is_file())
+        h = f.read_text(encoding="utf-8")
+        self.assertIn('<link rel="canonical" href="https://luz.bymachines.ai/ha/">', h)
+        self.assertIn('<meta name="robots" content="noindex">', h)
+        self.assertIn('http-equiv="refresh" content="0; url=/ha/?src=mastodon"', h)
+        self.assertIn('href="/ha/?src=mastodon"', h)
+        self.assertNotIn("<script", h)
+        self.assertIn("IA", h)
+        for name in ("sitemap.xml", "feed.xml", "llms.txt"):
+            self.assertNotIn("%E2%80%A6", (OUT / name).read_text(encoding="utf-8"))
