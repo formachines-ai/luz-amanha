@@ -31,6 +31,8 @@ no price is ever carried over or invented. Offline keep-existing: if the cache l
 
 Zero/negative note (T-0217, T-0234; temp-dir offline build from cached `data/omie/` plus a synthetic day with one hour at -0.16 €/MWh; the PT+EN "zero or negative price is real" line with the day's `marginalpdbcpt_YYYYMMDD.1` appears on that day and not on a day with all prices > 0): `python3 -m unittest tests.test_zeroneg_build`.
 
+Alias `/ha…` (T-0236): `public/ha…/index.html` (URL `/ha%E2%80%A6`), a noindex meta-refresh page to `/ha/?src=mastodon` that rescues a cut Mastodon link; not in sitemap/feed/llms.txt; test in `tests.test_links` (`HaAlias`).
+
 ## Refetch rule (T-0231)
 
 OMIE sometimes republishes a file under the same name. An online build downloads a cached `data/omie/<day>.txt` again while it is < 48 h old (measured from its first fetch in `data/omie/stamps.json`, or from 00:00 UTC of day D); different bytes replace the cache (logged as a warning, the pages for D and D-1 are rebuilt and their dates follow the new arrival time as in T-0226), a failed download or a non-OMIE body keeps the cached file, files older than 48 h and `--offline` builds never fetch. `build.json` has a top-level `omie_refetch` = `{checked, republished[], failed, failed_detail[]}` for the last build (T-0232); `failed` = `len(failed_detail)`, each entry `{file, reason}` with reason `network`, `http_<status>` or `invalid_body`, cached file kept (T-0233). Test (HTTP mocked, temp dirs): `python3 -m unittest tests.test_refetch`.
