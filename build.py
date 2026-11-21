@@ -19,7 +19,10 @@ import html
 import hashlib
 import json
 import logging
+import math
 import os
+import re
+import shutil
 import sys
 import urllib.error
 import urllib.parse
@@ -972,7 +975,7 @@ def static_pages(built: dt.datetime) -> None:
 - When available is false (tomorrow.json every day from 00:00 until OMIE publishes, about 13:15 UTC): present = date, available (false), built_utc, timezone, disclosure, and for tomorrow.json also note, last_attempt, last_attempt_http, next_attempt_utc (today.json has no note). Absent = unit, market, source_file, hours, stats, comparison, cheap_window, dear_window, estimate. No price is carried over or invented. Check available first, then read cheap_window, dear_window and stats only when it is true.
 - built_utc in tomorrow.json, today.json and /d/<date>/index.json is the time of the OMIE data the file is built from (files D and D+1), not the build time; the real build time is in {SITE_BASE}/build.json. / built_utc em tomorrow.json, today.json e /d/<data>/index.json é a hora dos dados OMIE (ficheiros D e D+1), não a hora da construção; esta está em build.json.
 - {SITE_BASE}/feed.xml — RSS, one item per published day
-- {SITE_BASE}/build.json — when the site was last built and which OMIE files it used; omie_refetch lists the OMIE files republished with different content in the last build (checked = cached files re-downloaded, republished = file names whose bytes changed, failed = young files whose re-download failed; failed_detail lists the file and reason (network, http_<status> or invalid_body) of each, and the cached copy is kept)
+- {SITE_BASE}/build.json — when the site was last built and which OMIE files it used; omie_refetch lists the OMIE files republished with different content in the last build (checked = cached files re-downloaded, republished = file names whose bytes changed, failed = young files whose re-download failed; failed_detail lists the file and reason (network, http_<status> or invalid_body) of each, and the cached copy is kept); qa = {{passed, checks[{{name, ok, detail}}]}} is the post-build QA of the same build (value count 23/24/25, no NaN, date, cheap ≤ average ≤ dear, PT/EN numbers equal, AI footer); a build that fails it is not published
 
 ## Facts about the data
 - Source: OMIE public file. The Portugal price comes from marginalpdbcpt_YYYYMMDD.1 or, when that is not published (since 2026-11-11), from column 5 of marginalpdbc_YYYYMMDD.1 (https://www.omie.es/). The file actually used for each day is in source_file of that day's JSON. 96 quarter-hour periods in CET/CEST, averaged per Lisbon hour.
@@ -1217,7 +1220,105 @@ def check_rollover(today: dt.date) -> None:
         raise SystemExit(f"FATAL: public/today.json date {got} != Lisbon date {today.isoformat()} at build time")
 
 
+QA: dict = {}  # result of the last post-build QA (T-0239), written to build.json as `qa`
+QA_FOOTER = ("Feito por agentes de IA", "Made by AI agents")
+_ROW = re.compile(r'<tr[^>]*><td>(\d\d:\d\d)</td><td>(-?\d+(?:\.\d+)?)')
+
+
+def _num_ok(v: object) -> bool:
+    return v is None or (isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v))
+
+
+def run_qa(root: Path, target: dt.date, main_day: dt.date, days: list[dt.date]) -> dict:
+    """Post-build QA (VISION): checks the pages written under `root` and returns {passed, checks:[{name, ok, detail}]}."""
+    bad: dict[str, list[str]] = {k: [] for k in ("value_count", "no_nan", "date", "window_order", "pt_en_numbers", "ai_footer")}
+    for d in days:
+        iso = d.isoformat()
+        try:
+            j = json.loads((root / "d" / iso / "index.json").read_text(encoding="utf-8"), parse_constant=lambda c: float(c.lower().replace("infinity", "inf")))
+            page_html = (root / "d" / iso / "index.html").read_text(encoding="utf-8")
+        except (OSError, ValueError) as e:
+            for k in ("value_count", "date"):
+                bad[k].append(f"{iso}: unreadable ({e})")
+            continue
+        hours = j.get("hours") or []
+        st = j.get("stats") or {}
+        prices = [h.get("price_pt_eur_mwh") for h in hours]
+        n = sum(1 for p in prices if p is not None)
+        if len(hours) not in (23, 24, 25) or st.get("available") != n or (n not in (23, 24, 25) and j.get("available")):
+            bad["value_count"].append(f"{iso}: {n} values in {len(hours)} hours")
+        if not all(_num_ok(p) for p in prices) or not all(_num_ok(q) for h in hours for q in (h.get("quarters_eur_mwh") or [])) \
+                or not all(_num_ok(st.get(k)) for k in ("avg", "min", "max")):
+            bad["no_nan"].append(f"{iso}: NaN/inf/non-number in prices")
+        if j.get("date") != iso or f"{d.day:02d}.{d.month:02d}.{d.year}" not in page_html.split("</h1>")[0].split("<h1>")[-1]:
+            bad["date"].append(f"{iso}: json date {j.get('date')}, h1 mismatch or wrong")
+        cw, dw, avg = (st.get("cheap_window") or {}).get("avg"), (st.get("dear_window") or {}).get("avg"), st.get("avg")
+        if avg is not None and cw is not None and dw is not None and not (cw <= avg + 0.005 and avg <= dw + 0.005):
+            bad["window_order"].append(f"{iso}: cheap {cw}, avg {avg}, dear {dw}")
+        pt, _, en = page_html.partition('<section id="en"')
+        rp, re_ = _ROW.findall(pt), _ROW.findall(en)
+        want = [(h["hour"], f"{h['price_pt_eur_mwh']:.2f}") for h in hours if isinstance(h.get("price_pt_eur_mwh"), (int, float)) and math.isfinite(h["price_pt_eur_mwh"])]
+        if rp != re_ or rp != want:
+            bad["pt_en_numbers"].append(f"{iso}: PT table {len(rp)} rows, EN {len(re_)}, json {len(want)}")
+    tj = json.loads((root / "tomorrow.json").read_text(encoding="utf-8"))
+    if tj.get("date") != target.isoformat():
+        bad["date"].append(f"tomorrow.json date {tj.get('date')} != {target}")
+    try:
+        idx = (root / "index.html").read_text(encoding="utf-8").split("</h1>")[0]
+        if f"{main_day.day:02d}.{main_day.month:02d}.{main_day.year}" not in idx:
+            bad["date"].append(f"index.html h1 does not show {main_day}")
+    except OSError:
+        bad["date"].append("index.html missing")
+    pages = ["index.html", "legal/index.html", "ha/index.html"] + [f"d/{d.isoformat()}/index.html" for d in days]
+    for p in pages:
+        try:
+            t = (root / p).read_text(encoding="utf-8")
+        except OSError:
+            bad["ai_footer"].append(f"{p}: missing")
+            continue
+        if not all(x in t for x in QA_FOOTER):
+            bad["ai_footer"].append(f"{p}: AI footer missing")
+    names = {"value_count": "values 23/24/25", "no_nan": "no NaN", "date": "date", "window_order": "cheap <= avg <= dear",
+             "pt_en_numbers": "PT/EN numbers equal", "ai_footer": "AI footer"}
+    checks = [{"name": names[k], "ok": not v, "detail": "; ".join(v[:5]) if v else f"{len(days)} dated pages"} for k, v in bad.items()]
+    return {"passed": all(c["ok"] for c in checks), "checks": checks}
+
+
 def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int:
+    """Build into a staging copy of public/, run QA, swap on pass; on failure public/ stays untouched and the exit code is 3 (T-0239)."""
+    global PUBLIC_DIR
+    real = PUBLIC_DIR
+    stage = real.with_name(real.name + ".staging")
+    old = real.with_name(real.name + ".old")
+    for p in (stage, old):
+        shutil.rmtree(p, ignore_errors=True)
+    if real.exists():
+        shutil.copytree(real, stage)
+    else:
+        stage.mkdir(parents=True)
+    QA.clear()
+    PUBLIC_DIR = stage
+    try:
+        rc = _build(target, offline, now)
+    except BaseException:
+        PUBLIC_DIR = real
+        shutil.rmtree(stage, ignore_errors=True)
+        raise
+    PUBLIC_DIR = real
+    if not QA.get("passed"):
+        for c in QA.get("checks", []):
+            if not c["ok"]:
+                log.error("QA FAILED: %s: %s", c["name"], c["detail"])
+        shutil.rmtree(stage, ignore_errors=True)
+        return 3
+    if real.exists():
+        real.rename(old)
+    stage.rename(real)
+    shutil.rmtree(old, ignore_errors=True)
+    return rc
+
+
+def _build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int:
     """`now` (aware datetime) is the build time; default = the clock. today = Europe/Lisbon calendar date of `now`."""
     built = (now or dt.datetime.now(dt.timezone.utc)).astimezone(dt.timezone.utc).replace(microsecond=0)
     today = built.astimezone(DISPLAY_TZ).date()
@@ -1298,12 +1399,14 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     archive_index(arch_days, per_day, built)
     feed(all_days, per_day, built)
     static_pages(built)
+    QA.update(run_qa(PUBLIC_DIR, target, main_day, sorted(files)))
     write(PUBLIC_DIR / "build.json", json.dumps({
         "built_utc": built.isoformat(timespec="seconds"), "target_date": target.isoformat(), "target_available": have_target,
         "index_shows": main_day.isoformat(), "files": {d.isoformat(): omie_filename(d) for d in sorted(files)},
         "source": OMIE_URL.format(parent=OMIE_PARENT, ymd="YYYYMMDD", version=OMIE_VERSION), "tariff_enabled": bool(tariff.get("enabled")),
         "builder": "build.py (python3 stdlib)",
         "omie_refetch": {"checked": REFETCH["checked"], "republished": sorted(REFETCH["republished"]), "failed": len(REFETCH["failed_detail"]), "failed_detail": list(REFETCH["failed_detail"])},
+        "qa": dict(QA),
     }, ensure_ascii=False, indent=1))
     log.info("build done: index shows %s (%s), %d archive days, tariff_enabled=%s", main_day, status, len(files), tariff.get("enabled"))
     return 0 if (have_target or today in files) else 2
@@ -1360,7 +1463,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.selftest:
         return selftest()
     target = dt.date.fromisoformat(a.date) if a.date else dt.datetime.now(DISPLAY_TZ).date() + dt.timedelta(days=1)  # Lisbon date at build time
-    return build(target, offline=a.offline)
+    return build(target, offline=a.offline)  # 0/2 as before; 3 = QA failed, public/ untouched
 
 
 if __name__ == "__main__":

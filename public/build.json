@@ -1,5 +1,5 @@
 {
- "built_utc": "2026-11-21T23:10:03+00:00",
+ "built_utc": "2026-11-21T23:27:12+00:00",
  "target_date": "2026-11-22",
  "target_available": true,
  "index_shows": "2026-11-22",
@@ -41,5 +41,40 @@
   "republished": [],
   "failed": 0,
   "failed_detail": []
+ },
+ "qa": {
+  "passed": true,
+  "checks": [
+   {
+    "name": "values 23/24/25",
+    "ok": true,
+    "detail": "28 dated pages"
+   },
+   {
+    "name": "no NaN",
+    "ok": true,
+    "detail": "28 dated pages"
+   },
+   {
+    "name": "date",
+    "ok": true,
+    "detail": "28 dated pages"
+   },
+   {
+    "name": "cheap <= avg <= dear",
+    "ok": true,
+    "detail": "28 dated pages"
+   },
+   {
+    "name": "PT/EN numbers equal",
+    "ok": true,
+    "detail": "28 dated pages"
+   },
+   {
+    "name": "AI footer",
+    "ok": true,
+    "detail": "28 dated pages"
+   }
+  ]
  }
 }
