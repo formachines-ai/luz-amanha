@@ -33,6 +33,10 @@ Zero/negative note (T-0217, T-0234; temp-dir offline build from cached `data/omi
 
 Alias `/ha…` (T-0236): `public/ha…/index.html` (URL `/ha%E2%80%A6`), a noindex meta-refresh page to `/ha/?src=mastodon` that rescues a cut Mastodon link; not in sitemap/feed/llms.txt; test in `tests.test_links` (`HaAlias`).
 
+## QA gate (T-0239)
+
+`build.py` builds into a staging copy of `public/`, runs the post-build QA and swaps it in only on a pass; on a failure it logs `QA FAILED`, exits with code 3 and the old `public/` stays untouched. Checks (every dated page written plus `/`, `/legal/`, `/ha/`): 23/24/25 values, no NaN, date (JSON, `<h1>`, `tomorrow.json`), cheap window ≤ day average ≤ dear window, PT and EN price tables equal to the JSON, AI footer. The result is `build.json` → `qa` = `{passed, checks:[{name, ok, detail}]}`. Test (synthetic NaN / wrong-date / cheap>avg days, temp dir): `python3 -m unittest tests.test_qa_gate`.
+
 ## Refetch rule (T-0231)
 
 OMIE sometimes republishes a file under the same name. An online build downloads a cached `data/omie/<day>.txt` again while it is < 48 h old (measured from its first fetch in `data/omie/stamps.json`, or from 00:00 UTC of day D); different bytes replace the cache (logged as a warning, the pages for D and D-1 are rebuilt and their dates follow the new arrival time as in T-0226), a failed download or a non-OMIE body keeps the cached file, files older than 48 h and `--offline` builds never fetch. `build.json` has a top-level `omie_refetch` = `{checked, republished[], failed, failed_detail[]}` for the last build (T-0232); `failed` = `len(failed_detail)`, each entry `{file, reason}` with reason `network`, `http_<status>` or `invalid_body`, cached file kept (T-0233). Test (HTTP mocked, temp dirs): `python3 -m unittest tests.test_refetch`.
