@@ -153,6 +153,24 @@ class Refetch(unittest.TestCase):
             self.assertIn(build.build(self.day, offline=False, now=now), (0, 2))
         self.assertEqual(self.cache.read_bytes(), self.old)
 
+    def test_failed_detail_reasons(self):
+        """T-0233: network / http_404 / invalid_body are reported in build.json, cache unchanged, failed == len(failed_detail)."""
+        now = self.now(10)
+        self.stamp(now - dt.timedelta(hours=5))
+        cases = [("network", dict(exc=urllib.error.URLError("boom"))),
+                 ("http_404", dict(exc=urllib.error.HTTPError("u", 404, "nf", {}, io.BytesIO(b"<html></html>")))),
+                 ("invalid_body", dict(body=b"<html>nope</html>"))]
+        for reason, kw in cases:
+            with self.serve(**kw):
+                self.assertIn(build.build(self.day, offline=False, now=now), (0, 2))
+            self.assertEqual(self.cache.read_bytes(), self.old)
+            r = json.loads((self.tmp / "public" / "build.json").read_text(encoding="utf-8"))["omie_refetch"]
+            self.assertIn({"file": self.cache.name, "reason": reason}, r["failed_detail"])
+            self.assertEqual(r["failed"], len(r["failed_detail"]))
+            self.assertIsInstance(r["checked"], int)
+            self.assertIsInstance(r["republished"], list)
+        self.assertIn("failed_detail", (self.tmp / "public" / "llms.txt").read_text(encoding="utf-8"))
+
     def test_html_body_keeps_cache(self):
         now = self.now(10)
         self.stamp(now - dt.timedelta(hours=1))
