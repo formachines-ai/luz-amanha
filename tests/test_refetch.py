@@ -105,6 +105,31 @@ class Refetch(unittest.TestCase):
         self.assertTrue(self.calls)
         self.assertEqual(self.cache.read_bytes(), self.old)
 
+    def test_build_json_reports_refetch_and_unchanged_keeps_stamps(self):
+        """T-0232: unchanged upstream -> cache, stamp and lastmod identical, republished empty; changed -> listed."""
+        now = self.now(10)
+        self.stamp(now - dt.timedelta(hours=5))
+        with self.serve(self.old):
+            build.build(self.day, offline=False, now=now)
+        sm = (self.tmp / "public" / "sitemap.xml").read_text(encoding="utf-8")
+        stamps = (self.tmp / "omie" / "stamps.json").read_text()
+        bj = json.loads((self.tmp / "public" / "build.json").read_text(encoding="utf-8"))
+        self.assertEqual(bj["omie_refetch"]["republished"], [])
+        self.assertIsInstance(bj["omie_refetch"]["checked"], int)
+        self.assertGreaterEqual(bj["omie_refetch"]["checked"], 1)
+        self.assertIsInstance(bj["omie_refetch"]["failed"], int)  # other mocked days answer 404
+        self.assertEqual(self.cache.read_bytes(), self.old)
+        later = now + dt.timedelta(hours=1)
+        with self.serve(self.old):
+            build.build(self.day, offline=False, now=later)
+        self.assertEqual((self.tmp / "omie" / "stamps.json").read_text(), stamps)
+        self.assertEqual((self.tmp / "public" / "sitemap.xml").read_text(encoding="utf-8"), sm)
+        with self.serve(self.new):
+            build.build(self.day, offline=False, now=later + dt.timedelta(hours=1))
+        bj = json.loads((self.tmp / "public" / "build.json").read_text(encoding="utf-8"))
+        self.assertEqual(bj["omie_refetch"]["republished"], [self.cache.name])
+        self.assertIn("omie_refetch", (self.tmp / "public" / "llms.txt").read_text(encoding="utf-8"))
+
     def test_old_file_not_refetched(self):
         now = self.now(24 * 5)
         self.stamp(now - dt.timedelta(days=4))

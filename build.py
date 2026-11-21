@@ -85,6 +85,7 @@ class OmieMissing(Exception):
     """The file for that date is not published (HTTP 404 or an HTML body instead of data)."""
 
 
+REFETCH: dict = {"checked": 0, "republished": [], "failed": 0}  # T-0232: result of the OMIE refetch of this build
 FETCH_CODE: dict = {}  # day -> HTTP status of the last real fetch ("error" on network failure)
 
 
@@ -188,6 +189,7 @@ def fetch_day(day: dt.date, offline: bool = False, now: dt.datetime | None = Non
                 log.debug("cache hit %s", p.name)
                 return text
             log.info("cache %s is < %d h old: re-fetching", p.name, REFETCH_HOURS)
+            REFETCH["checked"] += 1
         else:
             log.warning("cache file %s is not a valid OMIE file, refetching", p.name)
     if offline:
@@ -211,6 +213,8 @@ def fetch_day(day: dt.date, offline: bool = False, now: dt.datetime | None = Non
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             FETCH_CODE[day] = "error"
             log.error("network error for %s: %s", day, e)
+            if cached is not None:
+                REFETCH["failed"] += 1
             return cached
         FETCH_CODE[day] = status
         cand = body.decode("latin-1")
@@ -222,12 +226,15 @@ def fetch_day(day: dt.date, offline: bool = False, now: dt.datetime | None = Non
         text = cand
         break
     if text is None:
+        if cached is not None:
+            REFETCH["failed"] += 1
         return cached
     if cached is not None:
         if text == cached_raw:
             log.info("OMIE %s unchanged upstream", p.name)
             return cached
         log.warning("OMIE republished %s with different content: cache replaced", p.name)
+        REFETCH["republished"].append(p.name)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     p.write_text(text, encoding="latin-1")
     log.info("saved %s (%d bytes, %d data rows)", p, len(text), text.count("\n") - 2)
@@ -954,7 +961,7 @@ def static_pages(built: dt.datetime) -> None:
 - When available is false (tomorrow.json every day from 00:00 until OMIE publishes, about 13:15 UTC): present = date, available (false), built_utc, timezone, disclosure, and for tomorrow.json also note, last_attempt, last_attempt_http, next_attempt_utc (today.json has no note). Absent = unit, market, source_file, hours, stats, comparison, cheap_window, dear_window, estimate. No price is carried over or invented. Check available first, then read cheap_window, dear_window and stats only when it is true.
 - built_utc in tomorrow.json, today.json and /d/<date>/index.json is the time of the OMIE data the file is built from (files D and D+1), not the build time; the real build time is in {SITE_BASE}/build.json. / built_utc em tomorrow.json, today.json e /d/<data>/index.json é a hora dos dados OMIE (ficheiros D e D+1), não a hora da construção; esta está em build.json.
 - {SITE_BASE}/feed.xml — RSS, one item per published day
-- {SITE_BASE}/build.json — when the site was last built and which OMIE files it used
+- {SITE_BASE}/build.json — when the site was last built and which OMIE files it used; omie_refetch lists the OMIE files republished with different content in the last build (checked = cached files re-downloaded, republished = file names whose bytes changed, failed = re-downloads that failed)
 
 ## Facts about the data
 - Source: OMIE public file. The Portugal price comes from marginalpdbcpt_YYYYMMDD.1 or, when that is not published (since 2026-11-11), from column 5 of marginalpdbc_YYYYMMDD.1 (https://www.omie.es/). The file actually used for each day is in source_file of that day's JSON. 96 quarter-hour periods in CET/CEST, averaged per Lisbon hour.
@@ -1204,6 +1211,7 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     built = (now or dt.datetime.now(dt.timezone.utc)).astimezone(dt.timezone.utc).replace(microsecond=0)
     today = built.astimezone(DISPLAY_TZ).date()
     tariff = load_tariff()
+    REFETCH.update(checked=0, republished=[], failed=0)
     log.info("build start target=%s today(Lisbon)=%s offline=%s tariff_enabled=%s", target, today, offline, tariff.get("enabled"))
 
     files: dict[dt.date, dict] = {}
@@ -1284,6 +1292,7 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
         "index_shows": main_day.isoformat(), "files": {d.isoformat(): omie_filename(d) for d in sorted(files)},
         "source": OMIE_URL.format(parent=OMIE_PARENT, ymd="YYYYMMDD", version=OMIE_VERSION), "tariff_enabled": bool(tariff.get("enabled")),
         "builder": "build.py (python3 stdlib)",
+        "omie_refetch": {"checked": REFETCH["checked"], "republished": sorted(REFETCH["republished"]), "failed": REFETCH["failed"]},
     }, ensure_ascii=False, indent=1))
     log.info("build done: index shows %s (%s), %d archive days, tariff_enabled=%s", main_day, status, len(files), tariff.get("enabled"))
     return 0 if (have_target or today in files) else 2
