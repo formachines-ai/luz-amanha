@@ -154,15 +154,42 @@ def looks_like_omie(text: str) -> bool:
     return len(lines) >= 3 and lines[0].startswith(OMIE_HEADER_PREFIX) and lines[-1] == "*"
 
 
-def fetch_day(day: dt.date, offline: bool = False) -> str | None:
-    """Return the raw OMIE text for `day`, from cache or network. None if not published yet."""
+REFETCH_HOURS = 48  # T-0231: OMIE sometimes republishes a file under the same name; files younger than this are re-fetched
+
+
+def _first_fetch(day: dt.date) -> dt.datetime | None:
+    """UTC time the cached content of `day` first arrived (data/omie/stamps.json), None if unknown."""
+    try:
+        man = json.loads((DATA_DIR / "stamps.json").read_text(encoding="utf-8"))
+        return dt.datetime.fromisoformat(man[day.isoformat()]["changed_utc"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def should_refetch(day: dt.date, now: dt.datetime) -> bool:
+    """A cached file is re-fetched while it is < 48 h old, measured from its first fetch or from the start of day D (UTC)."""
+    limit = dt.timedelta(hours=REFETCH_HOURS)
+    start = dt.datetime.combine(day, dt.time(0, 0), tzinfo=dt.timezone.utc)
+    first = _first_fetch(day)
+    return now - start < limit or (first is not None and now - first < limit)
+
+
+def fetch_day(day: dt.date, offline: bool = False, now: dt.datetime | None = None) -> str | None:
+    """Return the raw OMIE text for `day`, from cache or network. None if not published yet.
+    A cached file < 48 h old is downloaded again; different bytes replace the cache, a failed download keeps it."""
     p = cache_path(day)
+    cached = cached_raw = None
     if p.exists():
         text = p.read_text(encoding="latin-1")
         if looks_like_omie(text):
-            log.debug("cache hit %s", p.name)
-            return text
-        log.warning("cache file %s is not a valid OMIE file, refetching", p.name)
+            cached = text
+            cached_raw = p.read_bytes().decode("latin-1")
+            if offline or not should_refetch(day, (now or dt.datetime.now(dt.timezone.utc)).astimezone(dt.timezone.utc)):
+                log.debug("cache hit %s", p.name)
+                return text
+            log.info("cache %s is < %d h old: re-fetching", p.name, REFETCH_HOURS)
+        else:
+            log.warning("cache file %s is not a valid OMIE file, refetching", p.name)
     if offline:
         log.info("offline: no cache for %s", day)
         return None
@@ -184,7 +211,7 @@ def fetch_day(day: dt.date, offline: bool = False) -> str | None:
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             FETCH_CODE[day] = "error"
             log.error("network error for %s: %s", day, e)
-            return None
+            return cached
         FETCH_CODE[day] = status
         cand = body.decode("latin-1")
         if status != 200 or "text/html" in ctype or not looks_like_omie(cand):
@@ -195,7 +222,12 @@ def fetch_day(day: dt.date, offline: bool = False) -> str | None:
         text = cand
         break
     if text is None:
-        return None
+        return cached
+    if cached is not None:
+        if text == cached_raw:
+            log.info("OMIE %s unchanged upstream", p.name)
+            return cached
+        log.warning("OMIE republished %s with different content: cache replaced", p.name)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     p.write_text(text, encoding="latin-1")
     log.info("saved %s (%d bytes, %d data rows)", p, len(text), text.count("\n") - 2)
@@ -1177,7 +1209,7 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
     files: dict[dt.date, dict] = {}
     wanted = [target + dt.timedelta(days=1), target] + [target - dt.timedelta(days=i) for i in range(1, FETCH_BACK_DAYS + 1)]
     for d in wanted:
-        text = fetch_day(d, offline=offline)
+        text = fetch_day(d, offline=offline, now=built)
         if text:
             try:
                 files[d] = parse_omie(text)
