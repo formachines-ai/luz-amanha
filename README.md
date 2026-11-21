@@ -31,7 +31,7 @@ no price is ever carried over or invented. Offline keep-existing: if the cache l
 
 ## Refetch rule (T-0231)
 
-OMIE sometimes republishes a file under the same name. An online build downloads a cached `data/omie/<day>.txt` again while it is < 48 h old (measured from its first fetch in `data/omie/stamps.json`, or from 00:00 UTC of day D); different bytes replace the cache (logged as a warning, the pages for D and D-1 are rebuilt and their dates follow the new arrival time as in T-0226), a failed download or a non-OMIE body keeps the cached file, files older than 48 h and `--offline` builds never fetch. Test (HTTP mocked, temp dirs): `python3 -m unittest tests.test_refetch`.
+OMIE sometimes republishes a file under the same name. An online build downloads a cached `data/omie/<day>.txt` again while it is < 48 h old (measured from its first fetch in `data/omie/stamps.json`, or from 00:00 UTC of day D); different bytes replace the cache (logged as a warning, the pages for D and D-1 are rebuilt and their dates follow the new arrival time as in T-0226), a failed download or a non-OMIE body keeps the cached file, files older than 48 h and `--offline` builds never fetch. `build.json` has a top-level `omie_refetch` = `{checked, republished[], failed}` for the last build (T-0232). Test (HTTP mocked, temp dirs): `python3 -m unittest tests.test_refetch`.
 
 ## What to commit
 

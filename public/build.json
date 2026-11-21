@@ -1,5 +1,5 @@
 {
- "built_utc": "2026-11-21T00:10:02+00:00",
+ "built_utc": "2026-11-21T11:38:17+00:00",
  "target_date": "2026-11-22",
  "target_available": false,
  "index_shows": "2026-11-21",
@@ -34,5 +34,10 @@
  },
  "source": "https://www.omie.es/es/file-download?parents=marginalpdbcpt&filename=marginalpdbcpt_YYYYMMDD.1",
  "tariff_enabled": false,
- "builder": "build.py (python3 stdlib)"
+ "builder": "build.py (python3 stdlib)",
+ "omie_refetch": {
+  "checked": 2,
+  "republished": [],
+  "failed": 0
+ }
 }
