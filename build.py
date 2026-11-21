@@ -679,7 +679,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     p.append(f"<p class=\"lead\">{esc(t['lead'])}</p>")
     if status and not today_mode:
         p.append(f'<p class="status">{esc(status_text(lang, t, status))}</p>')
-    p.append(f'<p class="note tg-line">{esc(t["tg_line"])} <a href="/go/telegram/">Telegram</a></p>')
+    p.append(f'<p class="note tg-line">{esc(t["tg_line"])} <a href="/go/telegram/" rel="nofollow">Telegram</a></p>')
     if not neutral:
         p.append(f'<p class="note when">{esc(t["when_tomorrow"].format(a=SCHEDULE_UTC[0], b=SCHEDULE_UTC[2]))}</p>')
         p.append(f'<p class="note rss-note"><a href="/feed.xml">{esc(t["rss_note"])}</a></p>')
@@ -784,7 +784,7 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 </head>
 <body>
 <header class="top"><a href="/" class="brand">{esc(SITE_NAME)}</a>
-<nav><a href="#en">EN</a> <a href="/d/">{esc(t['archive'])}</a> <a href="/tomorrow.json">{esc(t['json'])}</a> <a href="/feed.xml">{esc(t['feed'])}</a> <a href="/go/telegram/">Telegram</a> <a href="/legal/">Legal</a></nav></header>
+<nav><a href="#en">EN</a> <a href="/d/">{esc(t['archive'])}</a> <a href="/tomorrow.json">{esc(t['json'])}</a> <a href="/feed.xml">{esc(t['feed'])}</a> <a href="/go/telegram/" rel="nofollow">Telegram</a> <a href="/legal/">Legal</a></nav></header>
 <main>
 {body}
 </main>

@@ -133,3 +133,29 @@ class HaAlias(unittest.TestCase):
         self.assertIn("IA", h)
         for name in ("sitemap.xml", "feed.xml", "llms.txt"):
             self.assertNotIn("%E2%80%A6", (OUT / name).read_text(encoding="utf-8"))
+
+
+class GoCrawlers(unittest.TestCase):
+    """T-0237: crawlers stay off /go/; links to /go/ carry rel=nofollow."""
+
+    def test_robots_disallow_go(self):
+        r = (OUT / "robots.txt").read_text(encoding="utf-8")
+        self.assertIn("Disallow: /go/\n", r)
+        self.assertIn("Sitemap:", r)
+        self.assertIn("Allow: /\n", r)
+        self.assertNotIn("Disallow: /d/", r)
+        self.assertNotIn("Disallow: /\n", r)
+
+    def test_go_links_nofollow(self):
+        n = 0
+        for p in OUT.rglob("*.html"):
+            for m in re.finditer(r"<a\b[^>]*>", p.read_text(encoding="utf-8")):
+                tag = m.group(0)
+                h = re.search(r'\bhref="([^"]*)"', tag)
+                if h and "/go/" in h.group(1):
+                    n += 1
+                    self.assertRegex(tag, r'rel="[^"]*nofollow', f"{p}: {tag}")
+        self.assertGreater(n, 0)
+
+    def test_sitemap_no_go(self):
+        self.assertNotIn("/go/", (OUT / "sitemap.xml").read_text(encoding="utf-8"))
