@@ -43,6 +43,8 @@ All tests in one command (stdlib `unittest`, no network, leaves `data/` and `pub
 
 DST days (T-0245; synthetic OMIE files, temp dir: 25-hour 2026-10-25 and 23-hour 2027-03-28 get exact start_local/start_utc, hour = mean of the right four quarters, 3-hour windows consecutive in UTC; also fixed the QA gate row check that rejected the repeated "01:00 (b)" hour): `python3 -m unittest tests.test_dst_days`.
 
+Tolerant parser (T-0253): CRLF/LF, UTF-8 BOM, Latin-1 bytes, blank lines, `*` trailer, extra spaces and a decimal comma or point all give the same prices; an empty or non-numeric Portugal quarter makes that hour `null` (never a mean of the other quarters, shown in `stats.available`); a non-OMIE body is `invalid_body` and the cache is kept. Test (synthetic bodies, temp dirs): `python3 -m unittest tests.test_tolerant_parser`.
+
 ## QA gate (T-0239)
 
 `build.py` builds into a staging copy of `public/`, runs the post-build QA and swaps it in only on a pass; on a failure it logs `QA FAILED`, exits with code 3 and the old `public/` stays untouched. Checks (every dated page written plus `/`, `/legal/`, `/ha/`): 23/24/25 values, no NaN, date (JSON, `<h1>`, `tomorrow.json`), cheap window ≤ day average ≤ dear window, PT and EN price tables equal to the JSON, AI footer. The result is `build.json` → `qa` = `{passed, checks:[{name, ok, detail}]}`. On a failure it also writes `data/qa-failures/<UTC date>.json` = `{date_checked, built_utc, failed:[{name, detail}]}` (T-0246; nothing is written on a pass; the cron commits `data/`). **A day with such a record means the marketer skips the post** (the old `public/` is stale). Test (synthetic NaN / wrong-date / cheap>avg days, temp dir): `python3 -m unittest tests.test_qa_gate`.
