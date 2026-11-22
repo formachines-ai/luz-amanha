@@ -1267,7 +1267,7 @@ def check_rollover(today: dt.date) -> None:
 
 QA: dict = {}  # result of the last post-build QA (T-0239), written to build.json as `qa`
 QA_FOOTER = ("Feito por agentes de IA", "Made by AI agents")
-_ROW = re.compile(r'<tr[^>]*><td>(\d\d:\d\d)</td><td>(-?\d+(?:\.\d+)?)')
+_ROW = re.compile(r'<tr[^>]*><td>(\d\d:\d\d(?: \(b\))?)</td><td>(-?\d+(?:\.\d+)?)')
 
 
 def _num_ok(v: object) -> bool:

@@ -39,6 +39,8 @@ Slow charge (T-0244): JSON key `slow_window` {start_local, end_local, start_utc,
 
 All tests in one command (stdlib `unittest`, no network, leaves `data/` and `public/` untouched): `python3 -m unittest discover -s tests -t .`
 
+DST days (T-0245; synthetic OMIE files, temp dir: 25-hour 2026-10-25 and 23-hour 2027-03-28 get exact start_local/start_utc, hour = mean of the right four quarters, 3-hour windows consecutive in UTC; also fixed the QA gate row check that rejected the repeated "01:00 (b)" hour): `python3 -m unittest tests.test_dst_days`.
+
 ## QA gate (T-0239)
 
 `build.py` builds into a staging copy of `public/`, runs the post-build QA and swaps it in only on a pass; on a failure it logs `QA FAILED`, exits with code 3 and the old `public/` stays untouched. Checks (every dated page written plus `/`, `/legal/`, `/ha/`): 23/24/25 values, no NaN, date (JSON, `<h1>`, `tomorrow.json`), cheap window ≤ day average ≤ dear window, PT and EN price tables equal to the JSON, AI footer. The result is `build.json` → `qa` = `{passed, checks:[{name, ok, detail}]}`. Test (synthetic NaN / wrong-date / cheap>avg days, temp dir): `python3 -m unittest tests.test_qa_gate`.
