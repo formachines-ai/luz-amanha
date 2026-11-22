@@ -33,6 +33,8 @@ Zero/negative note (T-0217, T-0234; temp-dir offline build from cached `data/omi
 
 Alias `/ha…` (T-0236): `public/ha…/index.html` (URL `/ha%E2%80%A6`), a noindex meta-refresh page to `/ha/?src=mastodon` that rescues a cut Mastodon link; not in sitemap/feed/llms.txt; test in `tests.test_links` (`HaAlias`).
 
+Slow charge (T-0244): JSON key `slow_window` {start_local, end_local, start_utc, avg_eur_mwh, hours: 6, label} = cheapest 6 consecutive priced hours of the day shown, absent when fewer than 6 are priced; one PT and one EN line on the page; test (synthetic day, temp dir): `python3 -m unittest tests.test_slow_window`.
+
 ## Tests
 
 All tests in one command (stdlib `unittest`, no network, leaves `data/` and `public/` untouched): `python3 -m unittest discover -s tests -t .`
