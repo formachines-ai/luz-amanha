@@ -143,7 +143,7 @@ def omie_filename(day: dt.date) -> str:
     parent = OMIE_PARENT
     p = cache_path(day)
     if p.exists():
-        first = p.read_text(encoding="latin-1").lstrip().split(";", 1)[0].strip().lower()
+        first = _strip_bom(p.read_text(encoding="latin-1")).lstrip().split(";", 1)[0].strip().lower()
         if first == "marginalpdbc":
             parent = "marginalpdbc"
     return f"{parent}_{day:%Y%m%d}.{OMIE_VERSION}"
@@ -153,8 +153,26 @@ def cache_path(day: dt.date) -> Path:
     return DATA_DIR / f"{day.isoformat()}.txt"
 
 
+def _strip_bom(text: str) -> str:
+    """Drop a UTF-8 BOM, whether the body was decoded as UTF-8 (U+FEFF) or as Latin-1 (the three bytes ï»¿)."""
+    for bom in ("\ufeff", "\xef\xbb\xbf"):
+        if text.startswith(bom):
+            return text[len(bom):]
+    return text
+
+
+def _num(s: str) -> float | None:
+    """A price cell: decimal point or comma; empty, non-numeric, NaN or infinite -> None (never guessed)."""
+    s = s.strip().replace(",", ".")
+    try:
+        v = float(s)
+    except ValueError:
+        return None
+    return v if v == v and v not in (float("inf"), float("-inf")) else None
+
+
 def looks_like_omie(text: str) -> bool:
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    lines = [ln.strip() for ln in _strip_bom(text).splitlines() if ln.strip()]
     return len(lines) >= 3 and lines[0].startswith(OMIE_HEADER_PREFIX) and lines[-1] == "*"
 
 
@@ -256,15 +274,15 @@ def parse_omie(text: str) -> dict:
     """
     rows: list[tuple[int, float, float]] = []
     day: dt.date | None = None
-    for ln in text.splitlines():
+    for ln in _strip_bom(text).splitlines():
         ln = ln.strip()
         if not ln or ln.startswith(OMIE_HEADER_PREFIX) or ln == "*":
             continue
         parts = ln.split(";")
         if len(parts) < 6:
             raise ValueError(f"short row: {ln!r}")
-        y, m, d, k = (int(parts[i]) for i in range(4))
-        pt, es = float(parts[OMIE_COL_PT]), float(parts[OMIE_COL_ES])
+        y, m, d, k = (int(parts[i].strip()) for i in range(4))
+        pt, es = _num(parts[OMIE_COL_PT]), _num(parts[OMIE_COL_ES])
         row_day = dt.date(y, m, d)
         day = day or row_day
         if row_day != day:
@@ -282,9 +300,6 @@ def parse_omie(text: str) -> dict:
         raise ValueError(f"unexpected row count {n} for {day}")
     if [k for k, _, _ in rows] != list(range(1, n + 1)):
         raise ValueError(f"periods are not 1..{n} for {day}")
-    for _, pt, es in rows:
-        if pt != pt or es != es:  # NaN guard
-            raise ValueError("NaN price")
     return {"date": day, "periods": rows, "resolution_min": res}
 
 
@@ -326,8 +341,9 @@ def lisbon_hours(day: dt.date, files: dict[dt.date, dict]) -> list[dict]:
         if seen_labels[label] > 1:
             label += " (b)"   # repeated hour on the clock-change night
         vals = pool.get(t)
-        pt = round(sum(v[0] for v in vals) / len(vals), 2) if vals else None
-        es = round(sum(v[1] for v in vals) / len(vals), 2) if vals else None
+        # an hour with any empty/non-numeric quarter is a gap (null), never a mean of the rest
+        pt = round(sum(v[0] for v in vals) / len(vals), 2) if vals and all(v[0] is not None for v in vals) else None
+        es = round(sum(v[1] for v in vals) / len(vals), 2) if vals and all(v[1] is not None for v in vals) else None
         qs = sorted(qpool.get(t, []))
         quarters = [q[1] for q in qs] if len(qs) == 4 and pt is not None else None  # never filled in
         out.append({"label": label, "start_utc": t.isoformat(), "pt": pt, "es": es, "n": len(vals) if vals else 0, "quarters": quarters})
@@ -1072,7 +1088,9 @@ def comparison(day: dt.date, files: dict[dt.date, dict]) -> dict:
         return stats(lisbon_hours(d, files)).get("avg")
     def file_avg(d: dt.date) -> float | None:
         f = files.get(d)
-        return round(sum(p for _, p, _ in f["periods"]) / len(f["periods"]), 2) if f else None
+        if not f or any(p is None for _, p, _ in f["periods"]):
+            return None
+        return round(sum(p for _, p, _ in f["periods"]) / len(f["periods"]), 2)
     today_avg = lisbon_avg(day)
     y_avg = lisbon_avg(day - dt.timedelta(days=1))
     week = [a for a in (lisbon_avg(day - dt.timedelta(days=i)) for i in range(1, HISTORY_DAYS + 1)) if a is not None]
