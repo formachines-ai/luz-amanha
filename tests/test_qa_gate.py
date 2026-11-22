@@ -80,6 +80,7 @@ class QAGate(unittest.TestCase):
         j = json.loads((self.tmp / "public" / "d" / "2026-11-22" / "index.json").read_text(encoding="utf-8"))
         self.assertEqual(j["stats"]["available"], 23)
         self.assertFalse((self.tmp / "public.staging").exists())
+        self.assertFalse((self.tmp / "data" / "qa-failures").exists())
 
     def test_bad_days_fail_and_keep_old_output(self):
         self.assertIn(run(self.tmp), (0, 2))
@@ -92,6 +93,11 @@ class QAGate(unittest.TestCase):
                 self.assertTrue(any(check in m for m in cm.output), cm.output)
                 self.assertEqual(tree(self.tmp / "public"), before)
                 self.assertFalse((self.tmp / "public.staging").exists())
+                rec = json.loads((self.tmp / "data" / "qa-failures" / "2026-11-21.json").read_text(encoding="utf-8"))
+                self.assertEqual(rec["date_checked"], "2026-11-21")
+                self.assertTrue(rec["built_utc"].endswith("Z"))
+                self.assertTrue(any(check in f["name"] for f in rec["failed"]), rec)
+                shutil.rmtree(self.tmp / "data")
 
 
 if __name__ == "__main__":

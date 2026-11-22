@@ -1274,6 +1274,17 @@ def _num_ok(v: object) -> bool:
     return v is None or (isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v))
 
 
+def _write_qa_failure(now) -> None:
+    """T-0246: dated record of a failed QA (data/qa-failures/<UTC date>.json); public/ is not touched."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    now = now.astimezone(dt.timezone.utc)
+    rec = {"date_checked": now.date().isoformat(), "built_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+           "failed": [{"name": c["name"], "detail": c["detail"]} for c in QA.get("checks", []) if not c["ok"]]}
+    d = ROOT / "data" / "qa-failures"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{rec['date_checked']}.json").write_text(json.dumps(rec, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def run_qa(root: Path, target: dt.date, main_day: dt.date, days: list[dt.date]) -> dict:
     """Post-build QA (VISION): checks the pages written under `root` and returns {passed, checks:[{name, ok, detail}]}."""
     bad: dict[str, list[str]] = {k: [] for k in ("value_count", "no_nan", "date", "window_order", "pt_en_numbers", "ai_footer")}
@@ -1355,6 +1366,7 @@ def build(target: dt.date, offline: bool, now: dt.datetime | None = None) -> int
             if not c["ok"]:
                 log.error("QA FAILED: %s: %s", c["name"], c["detail"])
         shutil.rmtree(stage, ignore_errors=True)
+        _write_qa_failure(now)
         return 3
     if real.exists():
         real.rename(old)

@@ -43,7 +43,7 @@ DST days (T-0245; synthetic OMIE files, temp dir: 25-hour 2026-10-25 and 23-hour
 
 ## QA gate (T-0239)
 
-`build.py` builds into a staging copy of `public/`, runs the post-build QA and swaps it in only on a pass; on a failure it logs `QA FAILED`, exits with code 3 and the old `public/` stays untouched. Checks (every dated page written plus `/`, `/legal/`, `/ha/`): 23/24/25 values, no NaN, date (JSON, `<h1>`, `tomorrow.json`), cheap window ≤ day average ≤ dear window, PT and EN price tables equal to the JSON, AI footer. The result is `build.json` → `qa` = `{passed, checks:[{name, ok, detail}]}`. Test (synthetic NaN / wrong-date / cheap>avg days, temp dir): `python3 -m unittest tests.test_qa_gate`.
+`build.py` builds into a staging copy of `public/`, runs the post-build QA and swaps it in only on a pass; on a failure it logs `QA FAILED`, exits with code 3 and the old `public/` stays untouched. Checks (every dated page written plus `/`, `/legal/`, `/ha/`): 23/24/25 values, no NaN, date (JSON, `<h1>`, `tomorrow.json`), cheap window ≤ day average ≤ dear window, PT and EN price tables equal to the JSON, AI footer. The result is `build.json` → `qa` = `{passed, checks:[{name, ok, detail}]}`. On a failure it also writes `data/qa-failures/<UTC date>.json` = `{date_checked, built_utc, failed:[{name, detail}]}` (T-0246; nothing is written on a pass; the cron commits `data/`). **A day with such a record means the marketer skips the post** (the old `public/` is stale). Test (synthetic NaN / wrong-date / cheap>avg days, temp dir): `python3 -m unittest tests.test_qa_gate`.
 
 ## Refetch rule (T-0231)
 
