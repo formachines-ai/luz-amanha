@@ -46,6 +46,18 @@ class ComoLer(unittest.TestCase):
             self.assertIn(f'<link rel="alternate" hreflang="{hl}" href="https://luz.bymachines.ai/como-ler/">', h)
         self.assertIn("IA", h)
 
+    def test_hreflang_home_and_dated(self):
+        """T-0251: / , /d/ and dated pages carry pt/en/x-default pointing at their own canonical."""
+        day = sorted(p.name for p in (self.pub / "d").iterdir() if p.is_dir())[-1]
+        for rel, url in (("index.html", "https://luz.bymachines.ai/"),
+                         ("d/index.html", "https://luz.bymachines.ai/d/"),
+                         (f"d/{day}/index.html", f"https://luz.bymachines.ai/d/{day}/")):
+            h = (self.pub / rel).read_text(encoding="utf-8")
+            for hl in ("pt", "en", "x-default"):
+                self.assertIn(f'<link rel="alternate" hreflang="{hl}" href="{url}">', h, rel)
+            self.assertIn(f'<link rel="canonical" href="{url}">', h)
+            self.assertEqual(len(re.findall(r"<h1[ >]", h)), 1)
+
     def test_links(self):
         for page in ("index.html", "legal/index.html"):
             self.assertIn('href="/como-ler/"', (self.pub / page).read_text(encoding="utf-8"))
