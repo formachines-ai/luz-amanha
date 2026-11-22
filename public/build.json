@@ -1,8 +1,8 @@
 {
- "built_utc": "2026-11-22T07:48:28+00:00",
+ "built_utc": "2026-11-22T13:15:03+00:00",
  "target_date": "2026-11-23",
- "target_available": false,
- "index_shows": "2026-11-22",
+ "target_available": true,
+ "index_shows": "2026-11-23",
  "files": {
   "2026-10-26": "marginalpdbcpt_20261026.1",
   "2026-10-27": "marginalpdbcpt_20261027.1",
@@ -31,13 +31,14 @@
   "2026-11-19": "marginalpdbcpt_20261119.1",
   "2026-11-20": "marginalpdbcpt_20261120.1",
   "2026-11-21": "marginalpdbc_20261121.1",
-  "2026-11-22": "marginalpdbcpt_20261122.1"
+  "2026-11-22": "marginalpdbcpt_20261122.1",
+  "2026-11-23": "marginalpdbc_20261123.1"
  },
  "source": "https://www.omie.es/es/file-download?parents=marginalpdbcpt&filename=marginalpdbcpt_YYYYMMDD.1",
  "tariff_enabled": false,
  "builder": "build.py (python3 stdlib)",
  "omie_refetch": {
-  "checked": 0,
+  "checked": 2,
   "republished": [],
   "failed": 0,
   "failed_detail": []
@@ -48,32 +49,32 @@
    {
     "name": "values 23/24/25",
     "ok": true,
-    "detail": "28 dated pages"
+    "detail": "29 dated pages"
    },
    {
     "name": "no NaN",
     "ok": true,
-    "detail": "28 dated pages"
+    "detail": "29 dated pages"
    },
    {
     "name": "date",
     "ok": true,
-    "detail": "28 dated pages"
+    "detail": "29 dated pages"
    },
    {
     "name": "cheap <= avg <= dear",
     "ok": true,
-    "detail": "28 dated pages"
+    "detail": "29 dated pages"
    },
    {
     "name": "PT/EN numbers equal",
     "ok": true,
-    "detail": "28 dated pages"
+    "detail": "29 dated pages"
    },
    {
     "name": "AI footer",
     "ok": true,
-    "detail": "28 dated pages"
+    "detail": "29 dated pages"
    }
   ]
  }
