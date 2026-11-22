@@ -1,5 +1,6 @@
 """T-0247: /como-ler/ is generated (temp dir, offline) and linked from the footer, sitemap and llms.txt."""
 import datetime as dt
+import json
 import re
 import shutil
 import sys
@@ -36,7 +37,13 @@ class ComoLer(unittest.TestCase):
         self.assertEqual(len(re.findall(r"<h1[ >]", h)), 1)
         self.assertIn("marginalpdbcpt", h)
         self.assertIn('lang="en"', h)
-        self.assertNotIn("<script", h)
+        self.assertNotIn("<script>", h)
+        self.assertEqual(h.count("<script"), 1)
+        m = re.search(r'<script type="application/ld\+json">(.*?)</script>', h, re.S)
+        ld = json.loads(m.group(1))
+        self.assertEqual(ld["url"], "https://luz.bymachines.ai/como-ler/")
+        for hl in ("pt", "en", "x-default"):
+            self.assertIn(f'<link rel="alternate" hreflang="{hl}" href="https://luz.bymachines.ai/como-ler/">', h)
         self.assertIn("IA", h)
 
     def test_links(self):
