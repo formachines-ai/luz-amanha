@@ -583,6 +583,14 @@
   "hours": "06:00–09:00",
   "avg_eur_mwh": 240.92
  },
+ "slow_window": {
+  "start_local": "2026-11-11T00:00:00+00:00",
+  "end_local": "2026-11-11T06:00:00+00:00",
+  "start_utc": "2026-11-11T00:00:00Z",
+  "avg_eur_mwh": 184.34,
+  "hours": 6,
+  "label": "00:00–06:00"
+ },
  "estimate": {
   "enabled": false,
   "note": "estimate, not a bill"

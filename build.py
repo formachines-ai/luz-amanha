@@ -425,6 +425,35 @@ def price_pair(v_mwh: float | None, lang: str = "pt") -> str:
     return f'{cent_kwh(v_mwh, lang)} c/kWh <small class="mwh">({fmt(v_mwh)} €/MWh)</small>'
 
 
+SLOW_HOURS = 6
+
+
+def slow_window(hours: list[dict]) -> dict | None:
+    """T-0244: cheapest SLOW_HOURS consecutive priced hours of the day shown; None when there is no such run."""
+    best = None
+    for s in range(len(hours) - SLOW_HOURS + 1):
+        seg = hours[s:s + SLOW_HOURS]
+        if any(h["pt"] is None for h in seg):
+            continue
+        m = sum(h["pt"] for h in seg) / SLOW_HOURS
+        if best is None or m < best["avg"]:
+            best = {"start": s, "end": s + SLOW_HOURS, "avg": m}
+    return best
+
+
+def slow_line(hours: list[dict], lang: str) -> str:
+    w = slow_window(hours)
+    if not w:
+        return ""
+    a = window_text(hours, w).replace(":00", "")
+    avg = round(w["avg"], 2)
+    if lang == "pt":
+        txt = f"Carga lenta (ex. carro elétrico): 6 horas seguidas mais baratas {a}, média {cent_kwh(avg, 'pt')} c/kWh ({fmt(avg)} €/MWh) · preço grossista OMIE, não é a sua fatura."
+    else:
+        txt = f"Slow charge (e.g. EV): cheapest 6 hours in a row {a}, avg {cent_kwh(avg, 'en')} c/kWh ({fmt(avg)} €/MWh) · OMIE wholesale price, not your bill."
+    return f'<p class="note slow-window">{esc(txt)}</p>'
+
+
 def window_text(hours: list[dict], w: dict | None) -> str:
     if not w:
         return "—"
@@ -731,6 +760,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
              + (f" · {esc(t['vs_yday'])} {yd:+.1f}%" if yd is not None else "")
              + (f" · {esc(t['vs_week'])} {wk:+.1f}%" if wk is not None else "") + "</dd></div>")
     p.append("</dl>")
+    p.append(slow_line(hours, lang))
     p.append(f'<p class="note caveat">{esc(t["caveat"])}</p></div>')
     if not neutral:
         p.append(mtd_line(lang))
@@ -798,6 +828,19 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 """
 
 
+def _slow_json(hours: list[dict]) -> dict:
+    w = slow_window(hours)
+    if not w:
+        return {}
+    a, b = hours[w["start"]], hours[w["end"] - 1]
+    iso = lambda x: dt.datetime.fromisoformat(x["start_utc"])
+    return {"slow_window": {
+        "start_local": iso(a).astimezone(DISPLAY_TZ).isoformat(),
+        "end_local": (iso(b).astimezone(DISPLAY_TZ) + dt.timedelta(hours=1)).isoformat(),
+        "start_utc": iso(a).astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "avg_eur_mwh": round(w["avg"], 2), "hours": SLOW_HOURS, "label": window_text(hours, w)}}
+
+
 def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict, built: dt.datetime, source_file: str | None) -> dict:
     return {
         "date": day.isoformat(), "available": bool(st.get("available")), "timezone": "Europe/Lisbon", "unit": "EUR/MWh", "market": "OMIE day-ahead, Portugal",
@@ -811,6 +854,7 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
         "comparison": cmp,
         "cheap_window": {"hours": window_text(hours, st["cheap_window"]), "avg_eur_mwh": st["cheap_window"]["avg"]} if st.get("cheap_window") else None,
         "dear_window": {"hours": window_text(hours, st["dear_window"]), "avg_eur_mwh": st["dear_window"]["avg"]} if st.get("dear_window") else None,
+        **_slow_json(hours),
         "estimate": {"enabled": bool(tariff.get("enabled")), "note": "estimate, not a bill", **({k: tariff[k] for k in ("source", "valid_from", "snapshot_date")} if tariff.get("enabled") else {})},
         "hour_23_note": ({"pt": T["pt"]["hour23"], "en": T["en"]["hour23"]}
                          if any(x["label"] == "23:00" and x["pt"] is None for x in hours) else None),
@@ -970,6 +1014,7 @@ def static_pages(built: dt.datetime) -> None:
 - Time fields: top-level timezone = Europe/Lisbon; each hours[] entry has start (ISO 8601 Lisbon time with UTC offset, e.g. 2026-11-16T10:00:00+00:00) and start_utc (the same instant in UTC, ISO 8601); hour is the Lisbon wall-clock label.
 - {SITE_BASE}/today.json — today
 - Field definitions: cheapest_hours = the 3 cheapest single hours of the day (not necessarily consecutive); cheap_window and stats.cheap_window = the cheapest 3 consecutive hours (lowest average). The two can differ.
+- slow_window = {{start_local, end_local, start_utc, avg_eur_mwh, hours: 6, label}}: the cheapest 6 consecutive priced hours of the day shown (e.g. slow EV charging); absent when fewer than 6 consecutive hours have prices. Raw OMIE wholesale price, not a bill.
 - missing_reason: present only on an hours[] entry whose price_pt_eur_mwh is null (never on hours with a price). Values: needs_next_day_omie_file = the Lisbon hour 23:00 lies in the next day's OMIE file, not yet published; not_in_omie_file = any other hour absent from the OMIE files we hold. No price is ever estimated for these hours.
 - {SITE_BASE}/d/YYYY-MM-DD/index.json — archive, one file per day. /d/YYYY-MM-DD/ and its index.json exist only after OMIE publishes that day (about 13:00 CET); until then tomorrow.json has available:false and the archive URL returns 404.
 - When available is false (tomorrow.json every day from 00:00 until OMIE publishes, about 13:15 UTC): present = date, available (false), built_utc, timezone, disclosure, and for tomorrow.json also note, last_attempt, last_attempt_http, next_attempt_utc (today.json has no note). Absent = unit, market, source_file, hours, stats, comparison, cheap_window, dear_window, estimate. No price is carried over or invented. Check available first, then read cheap_window, dear_window and stats only when it is true.
