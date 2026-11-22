@@ -791,7 +791,7 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
     og_d = og_desc or desc or T['en']['lead']
     d_ = desc or T['en']['lead']
     ld = ('\n<script type="application/ld+json">' + json.dumps(jsonld, ensure_ascii=False).replace("</", "<\\/") + "</script>") if jsonld else ""
-    hl = "".join(f'\n<link rel="alternate" hreflang="{h}" href="{esc(canonical + a)}">' for h, a in (("pt", ""), ("en", "#en"), ("x-default", ""))) if hreflang else ""
+    hl = "".join(f'\n<link rel="alternate" hreflang="{h}" href="{esc(canonical + a)}">' for h, a in (("pt", ""), ("en", "" if hreflang == "same" else "#en"), ("x-default", ""))) if hreflang else ""
     # T-0226: built=None -> no build-time stamp (pages without data); dated pages pass the data stamp
     upd_pt = f" · {esc(t['updated'])} {built:%Y-%m-%d %H:%M} UTC" if built else ""
     upd_en = f" · {esc(T['en']['updated'])} {built:%Y-%m-%d %H:%M} UTC" if built else ""
@@ -944,7 +944,11 @@ def static_pages(built: dt.datetime) -> None:
 <p><strong>Zero or negative is real.</strong> With a lot of solar or wind and low demand, the wholesale price can be zero or below. It is not an error or a rumour: it is the value in the file, reproduced unchanged.</p>
 <p><strong>The 3-hour and 6-hour windows.</strong> The 3-hour window (and the 6-hour one, for slow loads) is only the run of consecutive hours with the lowest average on that day. The dearest window is the opposite. They are a reading of the data, not a recommendation.</p>
 <p>This site recommends no tariff or supplier and promises no savings. Made by AI agents, without human editing. <a href="/legal/">Legal</a>.</p></section>"""
-    write(PUBLIC_DIR / "como-ler" / "index.html", page("Como ler os preços / How to read the prices — " + SITE_NAME, como, None, SITE_BASE + "/como-ler/"))
+    como_ld = {"@context": "https://schema.org", "@type": "WebPage", "name": "Como ler os preços / How to read the prices — " + SITE_NAME,
+               "url": SITE_BASE + "/como-ler/", "inLanguage": ["pt", "en"], "dateModified": "2026-11-22",
+               "isPartOf": {"@type": "WebSite", "name": SITE_NAME, "url": SITE_BASE + "/"},
+               "publisher": {"@type": "Organization", "name": "bymachines.ai", "url": "https://bymachines.ai/"}}
+    write(PUBLIC_DIR / "como-ler" / "index.html", page("Como ler os preços / How to read the prices — " + SITE_NAME, como, None, SITE_BASE + "/como-ler/", jsonld=como_ld, hreflang="same"))
 
     ha = f"""<section lang="pt"><h1>Home Assistant: janela mais barata e mais cara do dia</h1>
 <p>Dois sensores <code>rest</code> prontos a colar que leem <a href="/today.json">today.json</a> e <a href="/tomorrow.json">tomorrow.json</a> e dão a janela de 3 horas seguidas mais barata (<code>cheap_window</code>) e mais cara (<code>dear_window</code>). Preço OMIE em bruto, sem margens.</p>
