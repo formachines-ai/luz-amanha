@@ -32,4 +32,5 @@
 - https://luz.bymachines.ai/ — tomorrow (or today if OMIE has not published yet), PT then EN
 - https://luz.bymachines.ai/d/ — archive index
 - https://luz.bymachines.ai/ha/ — copy-paste Home Assistant REST sensors for the cheapest and dearest window (today.json, tomorrow.json), PT+EN
+- https://luz.bymachines.ai/como-ler/ — how to read the hourly OMIE prices (PT+EN): wholesale, c/kWh = €/MWh ÷ 10, zero or negative hours, windows
 - https://luz.bymachines.ai/legal/ — responsible party, source, license, no tracking

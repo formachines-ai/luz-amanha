@@ -35,6 +35,8 @@ Alias `/ha…` (T-0236): `public/ha…/index.html` (URL `/ha%E2%80%A6`), a noind
 
 Slow charge (T-0244): JSON key `slow_window` {start_local, end_local, start_utc, avg_eur_mwh, hours: 6, label} = cheapest 6 consecutive priced hours of the day shown, absent when fewer than 6 are priced; one PT and one EN line on the page; test (synthetic day, temp dir): `python3 -m unittest tests.test_slow_window`.
 
+How-to-read page (T-0247): `public/como-ler/index.html`, static PT+EN explainer linked from every footer, in sitemap.xml and llms.txt; test: `python3 -m unittest tests.test_como_ler`.
+
 ## Tests
 
 All tests in one command (stdlib `unittest`, no network, leaves `data/` and `public/` untouched): `python3 -m unittest discover -s tests -t .`

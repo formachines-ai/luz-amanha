@@ -822,7 +822,7 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 {body}
 </main>
 <footer><p>{esc(t['footer'])}{esc(RESPONSIBLE)}{upd_pt}</p>
-<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)}{upd_en} · <a href="/legal/">legal</a> · <a href="/ha/">Home Assistant</a> · <a href="/brand/">brand</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
+<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)}{upd_en} · <a href="/legal/">legal</a> · <a href="/como-ler/">como ler / how to read</a> · <a href="/ha/">Home Assistant</a> · <a href="/brand/">brand</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
 </body>
 </html>
 """
@@ -929,6 +929,22 @@ def static_pages(built: dt.datetime) -> None:
 <p><strong>License:</strong> site texts, charts and JSON — CC BY 4.0. Source data belongs to OMIE.</p>
 <p>Full terms, contact and data policy: <a href="{LEGAL_UPSTREAM}">{LEGAL_UPSTREAM}</a>.</p></section>"""
     write(PUBLIC_DIR / "legal" / "index.html", page("Legal — " + SITE_NAME, legal, None, SITE_BASE + "/legal/"))
+
+    como = """<section lang="pt"><h1>Como ler os preços por hora</h1>
+<p><strong>De onde vêm.</strong> Os números são o preço do mercado diário do OMIE para Portugal, em €/MWh. O OMIE publica o dia seguinte por volta das 13:00 (hora de Madrid). A fonte de cada dia é o ficheiro <code>marginalpdbcpt_AAAAMMDD.1</code>, coluna de Portugal.</p>
+<p><strong>É preço grosso, não a sua fatura.</strong> É o custo da energia no mercado grosso. Não inclui redes, impostos, taxas nem a margem do comercializador. Para converter: c€/kWh = €/MWh ÷ 10 (por exemplo, 85 €/MWh são 8,5 c€/kWh). Este site não calcula faturas.</p>
+<p><strong>Uma hora são quatro quartos de hora.</strong> O mercado tem valores de 15 minutos. A hora mostrada é a média dos quatro quartos de hora, na hora de Lisboa. Nos dias de mudança de hora há 23 ou 25 horas.</p>
+<p><strong>Zero ou negativo é real.</strong> Com muita energia solar ou eólica e pouco consumo, o preço grosso pode ser zero ou abaixo de zero. Não é erro nem boato: é o valor do ficheiro, reproduzido sem alteração.</p>
+<p><strong>As janelas de 3 e 6 horas.</strong> A janela de 3 horas (e a de 6 horas, para cargas lentas) é apenas o conjunto de horas seguidas com a média mais baixa desse dia. A mais cara é o inverso. São uma leitura dos dados, não uma recomendação.</p>
+<p>Este site não recomenda tarifas nem comercializadores e não promete poupança. Feito por agentes de IA, sem edição humana. <a href="/legal/">Legal</a>. <a href="#en">EN</a></p></section>
+<section id="en" lang="en"><h2>How to read the hourly prices</h2>
+<p><strong>Where they come from.</strong> The numbers are the OMIE day-ahead market price for Portugal, in €/MWh. OMIE publishes the next day at about 13:00 Madrid time. The source for each day is the file <code>marginalpdbcpt_YYYYMMDD.1</code>, the Portugal column.</p>
+<p><strong>This is a wholesale price, not your bill.</strong> It is the cost of energy on the wholesale market. It excludes grid fees, taxes, levies and the supplier's margin. To convert: c€/kWh = €/MWh ÷ 10 (for example 85 €/MWh is 8.5 c€/kWh). This site does not calculate bills.</p>
+<p><strong>An hour is four quarter-hours.</strong> The market has 15-minute values. The hour shown is the mean of its four quarter-hours, in Lisbon time. On clock-change days there are 23 or 25 hours.</p>
+<p><strong>Zero or negative is real.</strong> With a lot of solar or wind and low demand, the wholesale price can be zero or below. It is not an error or a rumour: it is the value in the file, reproduced unchanged.</p>
+<p><strong>The 3-hour and 6-hour windows.</strong> The 3-hour window (and the 6-hour one, for slow loads) is only the run of consecutive hours with the lowest average on that day. The dearest window is the opposite. They are a reading of the data, not a recommendation.</p>
+<p>This site recommends no tariff or supplier and promises no savings. Made by AI agents, without human editing. <a href="/legal/">Legal</a>.</p></section>"""
+    write(PUBLIC_DIR / "como-ler" / "index.html", page("Como ler os preços / How to read the prices — " + SITE_NAME, como, None, SITE_BASE + "/como-ler/"))
 
     ha = f"""<section lang="pt"><h1>Home Assistant: janela mais barata e mais cara do dia</h1>
 <p>Dois sensores <code>rest</code> prontos a colar que leem <a href="/today.json">today.json</a> e <a href="/tomorrow.json">tomorrow.json</a> e dão a janela de 3 horas seguidas mais barata (<code>cheap_window</code>) e mais cara (<code>dear_window</code>). Preço OMIE em bruto, sem margens.</p>
@@ -1038,6 +1054,7 @@ def static_pages(built: dt.datetime) -> None:
 - {SITE_BASE}/ — tomorrow (or today if OMIE has not published yet), PT then EN
 - {SITE_BASE}/d/ — archive index
 - {SITE_BASE}/ha/ — copy-paste Home Assistant REST sensors for the cheapest and dearest window (today.json, tomorrow.json), PT+EN
+- {SITE_BASE}/como-ler/ — how to read the hourly OMIE prices (PT+EN): wholesale, c/kWh = €/MWh ÷ 10, zero or negative hours, windows
 - {SITE_BASE}/legal/ — responsible party, source, license, no tracking
 """)
 
@@ -1240,7 +1257,7 @@ def feed(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.datetime) 
            f"<lastBuildDate>{last_build:%a, %d %b %Y %H:%M:%S} +0000</lastBuildDate>{''.join(items)}</channel></rss>")
     write(PUBLIC_DIR / "feed.xml", xml)
     lm_all = max([day_stamp(d) for d in days if day_stamp(d)] or [built])
-    urls = [(SITE_BASE + "/", lm_all), (SITE_BASE + "/d/", lm_all), (SITE_BASE + "/ha/", None), (SITE_BASE + "/legal/", None), (SITE_BASE + "/brand/", None)] \
+    urls = [(SITE_BASE + "/", lm_all), (SITE_BASE + "/d/", lm_all), (SITE_BASE + "/ha/", None), (SITE_BASE + "/legal/", None), (SITE_BASE + "/como-ler/", None), (SITE_BASE + "/brand/", None)] \
         + [(f"{SITE_BASE}/d/{d.isoformat()}/", day_stamp(d)) for d in sorted(set(days) | set(NAV_DAYS))]
     write(PUBLIC_DIR / "sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
           + "".join(f"<url><loc>{u}</loc>" + (f"<lastmod>{lm:%Y-%m-%d}</lastmod>" if lm else "") + "</url>" for u, lm in urls) + "</urlset>")
