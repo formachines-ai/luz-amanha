@@ -1145,7 +1145,7 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
               "isBasedOn": {"@type": "Dataset", "name": "OMIE marginalpdbcpt / marginalpdbc day-ahead market results", "url": "https://www.omie.es/"},
               "distribution": {"@type": "DataDownload", "encodingFormat": "application/json",
                                "contentUrl": f"{SITE_BASE}/d/{day.isoformat()}/index.json"}}
-    html_text = page(title, day_nav(day) + day_body, stamp, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld, og_title=og_title, og_desc=og_desc)
+    html_text = page(title, day_nav(day) + day_body, stamp, f"{SITE_BASE}/d/{day.isoformat()}/", desc=desc, jsonld=day_ld, og_title=og_title, og_desc=og_desc, hreflang="same")
     data = day_json(day, hours, st, cmp, tariff, stamp or built, src)
     write(PUBLIC_DIR / "d" / day.isoformat() / "index.html", html_text)
     vote_pages(day, None)
@@ -1159,7 +1159,7 @@ def render_day(day: dt.date, files: dict, tariff: dict, built: dt.datetime, stat
         h_title = "Preço da luz amanhã em Portugal (OMIE) · Electricity price tomorrow"
         h_desc = ("Preço da luz em Portugal hora a hora (OMIE) e as 3 horas mais baratas de amanhã. "
                   "Hourly OMIE price, Portugal, cheapest 3 hours.")
-        write(PUBLIC_DIR / "index.html", page(h_title, body, built, SITE_BASE + "/", desc=h_desc, jsonld=site_ld, og_title=h_title, og_desc=h_desc))
+        write(PUBLIC_DIR / "index.html", page(h_title, body, built, SITE_BASE + "/", desc=h_desc, jsonld=site_ld, og_title=h_title, og_desc=h_desc, hreflang="same"))
     return data
 
 
@@ -1209,7 +1209,7 @@ def archive_index(days: list[dt.date], per_day: dict[dt.date, dict], built: dt.d
             '<th scope="col">Janela cara · média c/kWh (€/MWh)<br><span lang="en">Dear window · average c/kWh (€/MWh)</span></th><th scope="col">Média do dia c/kWh (€/MWh)<br><span lang="en">Day average c/kWh (€/MWh)</span></th>'
             '<th scope="col">Mínimo €/MWh (hora)<br><span lang="en">Minimum €/MWh (hour)</span></th><th scope="col">Horas / Hours</th><th scope="col">JSON</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table></section>')
-    write(PUBLIC_DIR / "d" / "index.html", page("Arquivo — " + SITE_NAME, body, built, SITE_BASE + "/d/"))
+    write(PUBLIC_DIR / "d" / "index.html", page("Arquivo — " + SITE_NAME, body, built, SITE_BASE + "/d/", hreflang="same"))
 
 
 STAMPS: dict[dt.date, dt.datetime] = {}
