@@ -168,3 +168,5 @@ Checked 2026-11-10 17:10 UTC (also seen by the 14:30 and 16:00 UTC builds): `GET
 - `today.json` carries `month_to_date` (month, from, to, days, hours, avg_eur_mwh, avg_cent_kwh): month-to-date mean of the raw OMIE PT hourly prices, shown on `/` (T-0222; test: `python3 -m unittest tests.test_month_to_date`).
 
 `built_utc` in `tomorrow.json`, `today.json` and `d/<date>/index.json` is the time of the OMIE data (files D and D+1), not the build time (T-0227); the real build time is in `build.json`. Explained in `llms.txt` and `/ha/`.
+
+Archive and day links (T-0260): `/d/` links every dated page newest first, each `/d/YYYY-MM-DD/` links the previous and next existing day (none past the last), every footer links `/d/`; test (synthetic 3-day set, temp dir): `python3 -m unittest tests.test_day_links`.
