@@ -15,6 +15,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import build  # noqa: E402
+from tests._omie import SNAPSHOT, copy_omie  # noqa: E402
 
 UTC = dt.timezone.utc
 
@@ -34,7 +35,7 @@ class Refetch(unittest.TestCase):
     def setUp(self):
         self._t = tempfile.TemporaryDirectory()
         self.tmp = Path(self._t.name)
-        shutil.copytree(ROOT / "data" / "omie", self.tmp / "omie")
+        copy_omie(self.tmp / "omie")
         days = sorted(p.stem for p in (self.tmp / "omie").glob("????-??-??.txt"))
         self.day = dt.date.fromisoformat(days[-1])
         self.cache = self.tmp / "omie" / f"{self.day}.txt"

@@ -12,6 +12,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import build  # noqa: E402
+from tests._omie import SNAPSHOT, copy_omie  # noqa: E402
 
 D1 = dt.date(2026, 11, 22)   # full day, cheap run planted
 D2 = dt.date(2026, 11, 23)   # tomorrow: only first 5 hours priced? (file holds 96 rows; hour 23 needs D+1)
@@ -26,7 +27,7 @@ class Slow(unittest.TestCase):
     def test_min_run_and_page(self):
         with tempfile.TemporaryDirectory() as t:
             tmp = Path(t)
-            shutil.copytree(ROOT / "data" / "omie", tmp / "omie")
+            copy_omie(tmp / "omie")
             # Madrid hours 3..8 (quarters 9..32) cheap at 10, rest rising
             (tmp / "omie" / f"{D1}.txt").write_text(synth(D1, lambda p: 10 if 9 <= p <= 32 else 50 + p), encoding="latin-1")
             now = dt.datetime(2026, 11, 21, 13, 15, tzinfo=dt.timezone.utc)

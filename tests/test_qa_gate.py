@@ -14,6 +14,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import build  # noqa: E402
+from tests._omie import SNAPSHOT, copy_omie  # noqa: E402
 
 NOW = dt.datetime(2026, 11, 21, 13, 15, tzinfo=dt.timezone.utc)
 TARGET = dt.date(2026, 11, 22)
@@ -65,7 +66,7 @@ class QAGate(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.TemporaryDirectory()
         self.tmp = Path(self.d.name)
-        shutil.copytree(ROOT / "data" / "omie", self.tmp / "omie")
+        copy_omie(self.tmp / "omie")
 
     def tearDown(self):
         self.d.cleanup()

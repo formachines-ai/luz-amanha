@@ -45,6 +45,8 @@ Missing 23:00 note (T-0254): JSON key `missing_hours_note` {pt, en} in `tomorrow
 
 All tests in one command (stdlib `unittest`, no network, leaves `data/` and `public/` untouched): `python3 -m unittest discover -s tests -t .`
 
+Tests are hermetic (T-0257): temp-build tests copy the frozen OMIE snapshot `tests/data/omie/` (days up to 2026-11-22, helper `tests/_omie.py`), never the real `data/omie/`.
+
 DST days (T-0245; synthetic OMIE files, temp dir: 25-hour 2026-10-25 and 23-hour 2027-03-28 get exact start_local/start_utc, hour = mean of the right four quarters, 3-hour windows consecutive in UTC; also fixed the QA gate row check that rejected the repeated "01:00 (b)" hour): `python3 -m unittest tests.test_dst_days`.
 
 Tolerant parser (T-0253): CRLF/LF, UTF-8 BOM, Latin-1 bytes, blank lines, `*` trailer, extra spaces and a decimal comma or point all give the same prices; an empty or non-numeric Portugal quarter makes that hour `null` (never a mean of the other quarters, shown in `stats.available`); a non-OMIE body is `invalid_body` and the cache is kept. Test (synthetic bodies, temp dirs): `python3 -m unittest tests.test_tolerant_parser`.

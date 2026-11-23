@@ -13,6 +13,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import build  # noqa: E402
+from tests._omie import SNAPSHOT, copy_omie  # noqa: E402
 
 SYN = dt.date(2026, 11, 22)
 POS = dt.date(2026, 11, 21)
@@ -28,7 +29,7 @@ class ZeroNegBuild(unittest.TestCase):
     def setUpClass(cls):
         cls.tmpd = tempfile.TemporaryDirectory()
         tmp = Path(cls.tmpd.name)
-        shutil.copytree(ROOT / "data" / "omie", tmp / "omie")
+        copy_omie(tmp / "omie")
         (tmp / "omie" / f"{SYN}.txt").write_text(synthetic(SYN), encoding="latin-1")
         now = dt.datetime(2026, 11, 21, 13, 15, tzinfo=dt.timezone.utc)
         with mock.patch.object(build, "DATA_DIR", tmp / "omie"), mock.patch.object(build, "PUBLIC_DIR", tmp / "public"), \

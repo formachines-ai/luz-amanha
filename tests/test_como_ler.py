@@ -12,6 +12,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import build  # noqa: E402
+from tests._omie import SNAPSHOT, copy_omie  # noqa: E402
 
 
 class ComoLer(unittest.TestCase):
@@ -19,7 +20,7 @@ class ComoLer(unittest.TestCase):
     def setUpClass(cls):
         cls.tmpd = tempfile.TemporaryDirectory()
         tmp = Path(cls.tmpd.name)
-        shutil.copytree(ROOT / "data" / "omie", tmp / "omie")
+        copy_omie(tmp / "omie")
         day = max(dt.date.fromisoformat(p.stem) for p in (tmp / "omie").glob("2*.txt"))
         now = dt.datetime.combine(day - dt.timedelta(days=1), dt.time(13, 15), tzinfo=dt.timezone.utc)
         with mock.patch.object(build, "DATA_DIR", tmp / "omie"), mock.patch.object(build, "PUBLIC_DIR", tmp / "public"), \
