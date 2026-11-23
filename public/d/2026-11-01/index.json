@@ -591,6 +591,33 @@
   "hours": 6,
   "label": "09:00–15:00"
  },
+ "zero_or_negative_hours": [
+  {
+   "start_local": "2026-11-01T10:00:00+00:00",
+   "start_utc": "2026-11-01T10:00:00Z",
+   "eur_mwh": -0.02
+  },
+  {
+   "start_local": "2026-11-01T11:00:00+00:00",
+   "start_utc": "2026-11-01T11:00:00Z",
+   "eur_mwh": -0.09
+  },
+  {
+   "start_local": "2026-11-01T12:00:00+00:00",
+   "start_utc": "2026-11-01T12:00:00Z",
+   "eur_mwh": -0.07
+  },
+  {
+   "start_local": "2026-11-01T13:00:00+00:00",
+   "start_utc": "2026-11-01T13:00:00Z",
+   "eur_mwh": -0.2
+  },
+  {
+   "start_local": "2026-11-01T14:00:00+00:00",
+   "start_utc": "2026-11-01T14:00:00Z",
+   "eur_mwh": -0.27
+  }
+ ],
  "estimate": {
   "enabled": false,
   "note": "estimate, not a bill"

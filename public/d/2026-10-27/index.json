@@ -591,6 +591,7 @@
   "hours": 6,
   "label": "09:00–15:00"
  },
+ "zero_or_negative_hours": [],
  "estimate": {
   "enabled": false,
   "note": "estimate, not a bill"

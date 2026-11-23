@@ -530,20 +530,32 @@ def only_23_missing(hours: list[dict]) -> bool:
     return miss == ["23:00"]
 
 
+def zeroneg_hours(hours: list[dict]) -> list[dict]:
+    """T-0255: every priced hour with price <= 0, as JSON entries (prices untouched)."""
+    out = []
+    for x in hours:
+        if x["pt"] is not None and x["pt"] <= 0:
+            u = dt.datetime.fromisoformat(x["start_utc"])
+            out.append({"start_local": u.astimezone(DISPLAY_TZ).isoformat(),
+                        "start_utc": u.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "eur_mwh": x["pt"]})
+    return out
+
+
 def zeroneg_line(hours: list[dict], lang: str, src: str | None = None) -> str:
     hs = [x["label"][:2] for x in hours if x["pt"] is not None and x["pt"] <= 0]
     if not hs:
         return ""
     n, lst = len(hs), ", ".join(hs)
+    link = '<a href="/como-ler/">'
     if lang == "pt":
-        txt = f"{n} {'hora' if n == 1 else 'horas'} com preço OMIE ≤ 0 €/MWh: {lst} (preço grossista, não é a sua fatura)."
+        txt = f"{n} {'hora' if n == 1 else 'horas'} com preço zero ou negativo ({link}real</a>, fonte OMIE): {esc(lst)} · preço grossista, não é a sua fatura."
         if src:
-            txt += f" Preço zero ou negativo é real: é o valor publicado pelo OMIE (ficheiro {src}), não um erro."
+            txt += esc(f" Preço zero ou negativo é real: é o valor publicado pelo OMIE (ficheiro {src}), não um erro.")
     else:
-        txt = f"{n} {'hour' if n == 1 else 'hours'} with OMIE price ≤ 0 €/MWh: {lst} (wholesale price, not your bill)."
+        txt = f"{n} {'hour' if n == 1 else 'hours'} at zero or negative price ({link}real</a>, OMIE source): {esc(lst)} · wholesale price, not your bill."
         if src:
-            txt += f" A zero or negative price is real: it is the value OMIE published (file {src}), not an error."
-    return f'<p class="note zeroneg-line">{esc(txt)}</p>'
+            txt += esc(f" A zero or negative price is real: it is the value OMIE published (file {src}), not an error.")
+    return f'<p class="note zeroneg-line">{txt}</p>'
 
 
 def hours_table(hours: list[dict], st: dict, tariff: dict, lang: str) -> str:
@@ -877,6 +889,7 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
         "cheap_window": {"hours": window_text(hours, st["cheap_window"]), "avg_eur_mwh": st["cheap_window"]["avg"]} if st.get("cheap_window") else None,
         "dear_window": {"hours": window_text(hours, st["dear_window"]), "avg_eur_mwh": st["dear_window"]["avg"]} if st.get("dear_window") else None,
         **_slow_json(hours),
+        "zero_or_negative_hours": zeroneg_hours(hours),
         "estimate": {"enabled": bool(tariff.get("enabled")), "note": "estimate, not a bill", **({k: tariff[k] for k in ("source", "valid_from", "snapshot_date")} if tariff.get("enabled") else {})},
         "hour_23_note": ({"pt": T["pt"]["hour23"], "en": T["en"]["hour23"]}
                          if only_23_missing(hours) else None),
@@ -1058,6 +1071,7 @@ def static_pages(built: dt.datetime) -> None:
 - {SITE_BASE}/today.json — today
 - Field definitions: cheapest_hours = the 3 cheapest single hours of the day (not necessarily consecutive); cheap_window and stats.cheap_window = the cheapest 3 consecutive hours (lowest average). The two can differ.
 - missing_hours_note = {{pt, en}} when the only null hour of the day shown is 23:00 Lisbon (it comes with the next day's OMIE file), otherwise null.
+- zero_or_negative_hours = list of {{start_local, start_utc, eur_mwh}} for every hour with price <= 0 (raw OMIE price, unchanged), or []. Wholesale price, not a bill.
 - slow_window = {{start_local, end_local, start_utc, avg_eur_mwh, hours: 6, label}}: the cheapest 6 consecutive priced hours of the day shown (e.g. slow EV charging); absent when fewer than 6 consecutive hours have prices. Raw OMIE wholesale price, not a bill.
 - missing_reason: present only on an hours[] entry whose price_pt_eur_mwh is null (never on hours with a price). Values: needs_next_day_omie_file = the Lisbon hour 23:00 lies in the next day's OMIE file, not yet published; not_in_omie_file = any other hour absent from the OMIE files we hold. No price is ever estimated for these hours.
 - {SITE_BASE}/d/YYYY-MM-DD/index.json — archive, one file per day. /d/YYYY-MM-DD/ and its index.json exist only after OMIE publishes that day (about 13:00 CET); until then tomorrow.json has available:false and the archive URL returns 404.
