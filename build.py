@@ -524,6 +524,12 @@ HOUR23_ROW_NOTE = {"pt": "publicado amanhã pela OMIE", "en": "published by OMIE
 ZERONEG_LABEL = {"pt": "zero/negativo", "en": "zero/negative"}
 
 
+def only_23_missing(hours: list[dict]) -> bool:
+    """T-0254: True when the only null hour of the day is Lisbon 23:00."""
+    miss = [x["label"] for x in hours if x["pt"] is None]
+    return miss == ["23:00"]
+
+
 def zeroneg_line(hours: list[dict], lang: str, src: str | None = None) -> str:
     hs = [x["label"][:2] for x in hours if x["pt"] is not None and x["pt"] <= 0]
     if not hs:
@@ -594,7 +600,7 @@ T = {
         "clock_change": "Dia com {n} horas (mudança de hora).",
         "cmp_basis": "Comparações: médias por hora de Lisboa (horas disponíveis) de cada dia, a mesma base da média acima.",
         "vs_yday": "vs. ontem", "vs_week": "vs. média dos últimos 7 dias",
-        "hour23": "A hora 23:00 sai no ficheiro OMIE do dia seguinte (~13:00 UTC); esta página completa-se então.",
+        "hour23": "A hora 23:00 é publicada com o ficheiro OMIE do dia seguinte.",
         "fact": "€/MWh é o preço marginal do mercado diário OMIE para Portugal — um facto, sem impostos, redes nem margem do comercializador.",
         "kwh_note": "Preço OMIE ÷ 1000 = €/kWh de energia no mercado; o seu comercializador soma perdas, margem, tarifas de acesso (TAR) e IVA — não é a sua fatura.",
         "est_off": "Preço grossista OMIE, sem impostos, redes nem margem; a sua fatura depende do contrato.",
@@ -628,7 +634,7 @@ T = {
         "clock_change": "Day with {n} hours (clock change).",
         "cmp_basis": "Comparisons: averages of Lisbon hours (available hours) for each day, the same basis as the average above.",
         "vs_yday": "vs. yesterday", "vs_week": "vs. last 7 days average",
-        "hour23": "The 23:00 hour comes in the next day's OMIE file (~13:00 UTC); this page is completed then.",
+        "hour23": "The 23:00 hour comes with the next day's OMIE file.",
         "fact": "€/MWh is the OMIE day-ahead marginal price for Portugal — a fact, before taxes, grid fees and supplier margin.",
         "kwh_note": "OMIE price ÷ 1000 = €/kWh of energy on the market; your supplier adds losses, margin, access tariffs (TAR) and VAT — it is not your bill.",
         "est_off": "OMIE wholesale price, without taxes, networks or margin; your bill depends on your contract.",
@@ -783,7 +789,7 @@ def day_section(lang: str, day: dt.date, hours: list[dict], st: dict, cmp: dict,
     if yd is not None or wk is not None:
         p.append(f'<p class="note">{esc(t["cmp_basis"])}</p>')
     p.append(svg_chart(hours, st))
-    if any(x["pt"] is None for x in hours):
+    if only_23_missing(hours):
         p.append(f'<p class="note">{esc(t["hour23"])}</p>')
     p.append(f'<p class="note">{esc(t["fact"])}</p>')
     if tariff.get("enabled"):
@@ -873,7 +879,8 @@ def day_json(day: dt.date, hours: list[dict], st: dict, cmp: dict, tariff: dict,
         **_slow_json(hours),
         "estimate": {"enabled": bool(tariff.get("enabled")), "note": "estimate, not a bill", **({k: tariff[k] for k in ("source", "valid_from", "snapshot_date")} if tariff.get("enabled") else {})},
         "hour_23_note": ({"pt": T["pt"]["hour23"], "en": T["en"]["hour23"]}
-                         if any(x["label"] == "23:00" and x["pt"] is None for x in hours) else None),
+                         if only_23_missing(hours) else None),
+        "missing_hours_note": ({"pt": T["pt"]["hour23"], "en": T["en"]["hour23"]} if only_23_missing(hours) else None),
         "disclosure": DISCLOSURE,
     }
 
@@ -1050,6 +1057,7 @@ def static_pages(built: dt.datetime) -> None:
 - Time fields: top-level timezone = Europe/Lisbon; each hours[] entry has start (ISO 8601 Lisbon time with UTC offset, e.g. 2026-11-16T10:00:00+00:00) and start_utc (the same instant in UTC, ISO 8601); hour is the Lisbon wall-clock label.
 - {SITE_BASE}/today.json — today
 - Field definitions: cheapest_hours = the 3 cheapest single hours of the day (not necessarily consecutive); cheap_window and stats.cheap_window = the cheapest 3 consecutive hours (lowest average). The two can differ.
+- missing_hours_note = {{pt, en}} when the only null hour of the day shown is 23:00 Lisbon (it comes with the next day's OMIE file), otherwise null.
 - slow_window = {{start_local, end_local, start_utc, avg_eur_mwh, hours: 6, label}}: the cheapest 6 consecutive priced hours of the day shown (e.g. slow EV charging); absent when fewer than 6 consecutive hours have prices. Raw OMIE wholesale price, not a bill.
 - missing_reason: present only on an hours[] entry whose price_pt_eur_mwh is null (never on hours with a price). Values: needs_next_day_omie_file = the Lisbon hour 23:00 lies in the next day's OMIE file, not yet published; not_in_omie_file = any other hour absent from the OMIE files we hold. No price is ever estimated for these hours.
 - {SITE_BASE}/d/YYYY-MM-DD/index.json — archive, one file per day. /d/YYYY-MM-DD/ and its index.json exist only after OMIE publishes that day (about 13:00 CET); until then tomorrow.json has available:false and the archive URL returns 404.

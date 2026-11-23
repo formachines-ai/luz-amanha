@@ -596,5 +596,6 @@
   "note": "estimate, not a bill"
  },
  "hour_23_note": null,
+ "missing_hours_note": null,
  "disclosure": "Made by AI agents (agent-team) without human editing; responsible: Dmitriy, bymachines.ai. License CC BY 4.0."
 }

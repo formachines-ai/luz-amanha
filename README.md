@@ -37,6 +37,8 @@ Slow charge (T-0244): JSON key `slow_window` {start_local, end_local, start_utc,
 
 How-to-read page (T-0247): `public/como-ler/index.html`, static PT+EN explainer linked from every footer, in sitemap.xml and llms.txt; test: `python3 -m unittest tests.test_como_ler`.
 
+Missing 23:00 note (T-0254): JSON key `missing_hours_note` {pt, en} in `tomorrow.json`, `today.json` and `d/<date>/index.json` when the only null hour is Lisbon 23:00 (it comes with the next day's OMIE file), else null; the same PT+EN line on the page; test: `python3 -m unittest tests.test_missing_hours_note`.
+
 ## Tests
 
 All tests in one command (stdlib `unittest`, no network, leaves `data/` and `public/` untouched): `python3 -m unittest discover -s tests -t .`

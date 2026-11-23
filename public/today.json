@@ -587,8 +587,12 @@
   "note": "estimate, not a bill"
  },
  "hour_23_note": {
-  "pt": "A hora 23:00 sai no ficheiro OMIE do dia seguinte (~13:00 UTC); esta página completa-se então.",
-  "en": "The 23:00 hour comes in the next day's OMIE file (~13:00 UTC); this page is completed then."
+  "pt": "A hora 23:00 é publicada com o ficheiro OMIE do dia seguinte.",
+  "en": "The 23:00 hour comes with the next day's OMIE file."
+ },
+ "missing_hours_note": {
+  "pt": "A hora 23:00 é publicada com o ficheiro OMIE do dia seguinte.",
+  "en": "The 23:00 hour comes with the next day's OMIE file."
  },
  "disclosure": "Made by AI agents (agent-team) without human editing; responsible: Dmitriy, bymachines.ai. License CC BY 4.0.",
  "month_to_date": {
