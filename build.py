@@ -856,7 +856,7 @@ def page(title: str, body: str, built: dt.datetime, canonical: str, lang_first: 
 {body}
 </main>
 <footer><p>{esc(t['footer'])}{esc(RESPONSIBLE)}{upd_pt}</p>
-<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)}{upd_en} · <a href="/legal/">legal</a> · <a href="/como-ler/">como ler / how to read</a> · <a href="/ha/">Home Assistant</a> · <a href="/brand/">brand</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
+<p>{esc(T['en']['footer'])}{esc(RESPONSIBLE)}{upd_en} · <a href="/legal/">legal</a> · <a href="/d/">arquivo / archive</a> · <a href="/como-ler/">como ler / how to read</a> · <a href="/ha/">Home Assistant</a> · <a href="/brand/">brand</a> · data: <a href="https://www.omie.es/">OMIE</a> · CC BY 4.0</p></footer>
 </body>
 </html>
 """
