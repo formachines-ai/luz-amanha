@@ -5,7 +5,7 @@
  "unit": "EUR/MWh",
  "market": "OMIE day-ahead, Portugal",
  "source_file": "marginalpdbc_20261123.1",
- "built_utc": "2026-11-22T13:15:03+00:00",
+ "built_utc": "2026-11-23T13:15:05+00:00",
  "hours": [
   {
    "hour": "00:00",
@@ -518,20 +518,29 @@
    "start": "2026-11-23T23:00:00+00:00",
    "start_local": "2026-11-23T23:00:00+00:00",
    "start_utc": "2026-11-23T23:00:00Z",
-   "price_pt_eur_mwh": null,
-   "quarters_pt_eur_mwh": null,
-   "quarters_eur_mwh": null,
-   "price_pt_cent_kwh": null,
-   "price_es_eur_mwh": null,
-   "energy_eur_kwh": null,
-   "missing_reason": "needs_next_day_omie_file"
+   "price_pt_eur_mwh": 210.45,
+   "quarters_pt_eur_mwh": [
+    216.56,
+    212.79,
+    208.47,
+    203.98
+   ],
+   "quarters_eur_mwh": [
+    216.56,
+    212.79,
+    208.47,
+    203.98
+   ],
+   "price_pt_cent_kwh": 21.0,
+   "price_es_eur_mwh": 210.45,
+   "energy_eur_kwh": 0.2104
   }
  ],
  "stats": {
-  "available": 23,
+  "available": 24,
   "hours_expected": 24,
-  "complete": false,
-  "avg": 206.42,
+  "complete": true,
+  "avg": 206.58,
   "min": 133.88,
   "max": 301.08,
   "cheap_window": {
@@ -562,8 +571,8 @@
   "yesterday_avg": 70.2,
   "week_avg": 91.39,
   "week_days": 7,
-  "vs_yesterday": 194.0,
-  "vs_week": 125.9,
+  "vs_yesterday": 194.3,
+  "vs_week": 126.0,
   "basis": "Lisbon-hour averages over available hours (yesterday_avg, week_avg, vs_*); day_avg_file = OMIE file day, Madrid time"
  },
  "cheap_window": {
@@ -587,13 +596,7 @@
   "enabled": false,
   "note": "estimate, not a bill"
  },
- "hour_23_note": {
-  "pt": "A hora 23:00 é publicada com o ficheiro OMIE do dia seguinte.",
-  "en": "The 23:00 hour comes with the next day's OMIE file."
- },
- "missing_hours_note": {
-  "pt": "A hora 23:00 é publicada com o ficheiro OMIE do dia seguinte.",
-  "en": "The 23:00 hour comes with the next day's OMIE file."
- },
+ "hour_23_note": null,
+ "missing_hours_note": null,
  "disclosure": "Made by AI agents (agent-team) without human editing; responsible: Dmitriy, bymachines.ai. License CC BY 4.0."
 }
