@@ -15,6 +15,7 @@ from urllib.parse import urlsplit, unquote
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import build  # noqa: E402
+from tests._omie import SNAPSHOT, copy_omie  # noqa: E402
 
 TMP = None
 OUT = None
@@ -26,12 +27,12 @@ def setUpModule():
     global TMP, OUT
     TMP = tempfile.TemporaryDirectory()
     tmp = Path(TMP.name)
-    shutil.copytree(ROOT / "data" / "omie", tmp / "omie")
+    copy_omie(tmp / "omie")
     days = sorted(p.stem for p in (tmp / "omie").glob("????-??-??.txt"))
     target = dt.date.fromisoformat(days[-1])
     with mock.patch.object(build, "DATA_DIR", tmp / "omie"), mock.patch.object(build, "PUBLIC_DIR", tmp / "public"), \
             mock.patch.object(build, "ROOT", tmp), mock.patch("urllib.request.urlopen", side_effect=OSError("network disabled")):
-        build.build(target, offline=True)
+        build.build(target, offline=True, now=dt.datetime.combine(target, dt.time(13, 15), tzinfo=dt.timezone.utc))
     OUT = tmp / "public"
 
 

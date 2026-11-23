@@ -13,10 +13,11 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import build  # noqa: E402
+from tests._omie import SNAPSHOT, copy_omie  # noqa: E402
 
 
 def build_into(tmp: Path, now: dt.datetime, target: dt.date) -> Path:
-    shutil.copytree(ROOT / "data" / "omie", tmp / "omie")
+    copy_omie(tmp / "omie")
     with mock.patch.object(build, "DATA_DIR", tmp / "omie"), mock.patch.object(build, "PUBLIC_DIR", tmp / "public"), \
             mock.patch.object(build, "ROOT", tmp), mock.patch("urllib.request.urlopen", side_effect=OSError("network disabled")):
         build.build(target, offline=True, now=now)
@@ -27,7 +28,7 @@ class StableDates(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.t1, cls.t2 = tempfile.TemporaryDirectory(), tempfile.TemporaryDirectory()
-        days = sorted(p.stem for p in (ROOT / "data" / "omie").glob("????-??-??.txt"))
+        days = sorted(p.stem for p in SNAPSHOT.glob("????-??-??.txt"))
         target = dt.date.fromisoformat(days[-1])
         base = dt.datetime.combine(target - dt.timedelta(days=1), dt.time(13, 15), tzinfo=dt.timezone.utc)
         cls.a = build_into(Path(cls.t1.name), base, target)
@@ -55,7 +56,7 @@ class StableDates(unittest.TestCase):
         """A changed OMIE file D+1 must move the lastmod of page D (no frozen dates)."""
         with tempfile.TemporaryDirectory() as t:
             tmp = Path(t)
-            shutil.copytree(ROOT / "data" / "omie", tmp / "omie")
+            copy_omie(tmp / "omie")
             f = tmp / "omie" / "2026-11-11.txt"
             f.write_bytes(f.read_bytes() + b"\n")
             with mock.patch.object(build, "DATA_DIR", tmp / "omie"):

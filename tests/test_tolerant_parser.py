@@ -16,6 +16,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import build  # noqa: E402
+from tests._omie import SNAPSHOT, copy_omie  # noqa: E402
 
 D = dt.date(2026, 11, 22)
 
@@ -73,7 +74,7 @@ class Variants(unittest.TestCase):
         body = "MARGINALPDBCPT;\n" + "\n".join(rows(pt_override=lambda p: "" if p == 14 else None)) + "\n*\n"
         with tempfile.TemporaryDirectory() as t:
             tmp = Path(t)
-            shutil.copytree(ROOT / "data" / "omie", tmp / "omie")
+            copy_omie(tmp / "omie")
             (tmp / "omie" / f"{D}.txt").write_text(body, encoding="latin-1")
             nxt = D + dt.timedelta(days=1)   # D+1 file supplies Lisbon hour 23
             (tmp / "omie" / f"{nxt}.txt").write_text("MARGINALPDBCPT;\n" + "\n".join(r.replace(f";{D.day:02d};", f";{nxt.day:02d};") for r in rows()) + "\n*\n", encoding="latin-1")
