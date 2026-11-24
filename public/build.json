@@ -1,5 +1,5 @@
 {
- "built_utc": "2026-11-24T00:10:03+00:00",
+ "built_utc": "2026-11-24T13:15:03+00:00",
  "target_date": "2026-11-25",
  "target_available": false,
  "index_shows": "2026-11-24",
@@ -39,7 +39,7 @@
  "tariff_enabled": false,
  "builder": "build.py (python3 stdlib)",
  "omie_refetch": {
-  "checked": 0,
+  "checked": 2,
   "republished": [],
   "failed": 0,
   "failed_detail": []
