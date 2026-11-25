@@ -5,7 +5,7 @@
  "unit": "EUR/MWh",
  "market": "OMIE day-ahead, Portugal",
  "source_file": "marginalpdbcpt_20261125.1",
- "built_utc": "2026-11-24T14:30:03+00:00",
+ "built_utc": "2026-11-25T13:45:02+00:00",
  "hours": [
   {
    "hour": "00:00",
@@ -518,20 +518,29 @@
    "start": "2026-11-25T23:00:00+00:00",
    "start_local": "2026-11-25T23:00:00+00:00",
    "start_utc": "2026-11-25T23:00:00Z",
-   "price_pt_eur_mwh": null,
-   "quarters_pt_eur_mwh": null,
-   "quarters_eur_mwh": null,
-   "price_pt_cent_kwh": null,
-   "price_es_eur_mwh": null,
-   "energy_eur_kwh": null,
-   "missing_reason": "needs_next_day_omie_file"
+   "price_pt_eur_mwh": 190.0,
+   "quarters_pt_eur_mwh": [
+    196.0,
+    191.9,
+    187.32,
+    184.8
+   ],
+   "quarters_eur_mwh": [
+    196.0,
+    191.9,
+    187.32,
+    184.8
+   ],
+   "price_pt_cent_kwh": 19.0,
+   "price_es_eur_mwh": 190.0,
+   "energy_eur_kwh": 0.19
   }
  ],
  "stats": {
-  "available": 23,
+  "available": 24,
   "hours_expected": 24,
-  "complete": false,
-  "avg": 110.38,
+  "complete": true,
+  "avg": 113.7,
   "min": 5.83,
   "max": 233.58,
   "cheap_window": {
@@ -562,8 +571,8 @@
   "yesterday_avg": 206.45,
   "week_avg": 122.95,
   "week_days": 7,
-  "vs_yesterday": -46.5,
-  "vs_week": -10.2,
+  "vs_yesterday": -44.9,
+  "vs_week": -7.5,
   "basis": "Lisbon-hour averages over available hours (yesterday_avg, week_avg, vs_*); day_avg_file = OMIE file day, Madrid time"
  },
  "cheap_window": {
@@ -587,24 +596,18 @@
   "enabled": false,
   "note": "estimate, not a bill"
  },
- "hour_23_note": {
-  "pt": "A hora 23:00 é publicada com o ficheiro OMIE do dia seguinte.",
-  "en": "The 23:00 hour comes with the next day's OMIE file."
- },
- "missing_hours_note": {
-  "pt": "A hora 23:00 é publicada com o ficheiro OMIE do dia seguinte.",
-  "en": "The 23:00 hour comes with the next day's OMIE file."
- },
+ "hour_23_note": null,
+ "missing_hours_note": null,
  "disclosure": "Made by AI agents (agent-team) without human editing; responsible: Dmitriy, bymachines.ai. License CC BY 4.0.",
  "month_to_date": {
   "month": "2026-11",
   "from": "2026-11-01",
   "to": "2026-11-25",
   "days": 25,
-  "hours": 599,
-  "avg_eur_mwh": 160.18,
+  "hours": 600,
+  "avg_eur_mwh": 160.23,
   "avg_cent_kwh": 16.0,
-  "avg_pt_eur_mwh": 160.18,
+  "avg_pt_eur_mwh": 160.23,
   "avg_pt_cent_kwh": 16.0
  }
 }
